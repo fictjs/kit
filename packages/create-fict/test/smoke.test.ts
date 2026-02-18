@@ -14,7 +14,7 @@ afterEach(async () => {
 })
 
 describe('create-fict', () => {
-  it('scaffolds a project from template', async () => {
+  it('scaffolds project with default features', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
     dirs.push(root)
 
@@ -23,11 +23,46 @@ describe('create-fict', () => {
 
     const packageJson = JSON.parse(await fs.readFile(path.join(targetDir, 'package.json'), 'utf8')) as {
       name: string
+      dependencies: Record<string, string>
+      scripts: Record<string, string>
     }
-    const entryClient = await fs.readFile(path.join(targetDir, 'src/entry-client.ts'), 'utf8')
 
     expect(packageJson.name).toBe('my-app')
-    expect(entryClient).toContain("virtual:fict-kit/entry-client")
+    expect(packageJson.dependencies['@fictjs/adapter-node']).toBe('^0.1.0')
+    expect(packageJson.scripts.lint).toBe('eslint .')
+    expect(packageJson.scripts.test).toBe('vitest run')
+
+    await expect(fs.stat(path.join(targetDir, 'eslint.config.js'))).resolves.toBeDefined()
+    await expect(fs.stat(path.join(targetDir, 'vitest.config.ts'))).resolves.toBeDefined()
+  })
+
+  it('supports static adapter without eslint/vitest', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
+    dirs.push(root)
+
+    const targetDir = path.join(root, 'my-static-app')
+    await scaffoldProject(targetDir, {
+      template: 'minimal',
+      adapter: 'static',
+      eslint: false,
+      vitest: false,
+    })
+
+    const packageJson = JSON.parse(await fs.readFile(path.join(targetDir, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+      scripts: Record<string, string>
+    }
+
+    expect(packageJson.dependencies['@fictjs/adapter-static']).toBe('^0.1.0')
+    expect(packageJson.dependencies['@fictjs/adapter-node']).toBeUndefined()
+    expect(packageJson.scripts.lint).toBeUndefined()
+    expect(packageJson.scripts.test).toBeUndefined()
+
+    const config = await fs.readFile(path.join(targetDir, 'fict.config.ts'), 'utf8')
+    expect(config).toContain("@fictjs/adapter-static")
+
+    await expect(fs.stat(path.join(targetDir, 'eslint.config.js'))).rejects.toThrow()
+    await expect(fs.stat(path.join(targetDir, 'vitest.config.ts'))).rejects.toThrow()
   })
 
   it('throws when target is non-empty without force/yes', async () => {
