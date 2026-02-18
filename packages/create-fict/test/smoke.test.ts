@@ -29,4 +29,31 @@ describe('create-fict', () => {
     expect(packageJson.name).toBe('my-app')
     expect(entryClient).toContain("virtual:fict-kit/entry-client")
   })
+
+  it('throws when target is non-empty without force/yes', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
+    dirs.push(root)
+
+    const targetDir = path.join(root, 'existing')
+    await fs.mkdir(targetDir, { recursive: true })
+    await fs.writeFile(path.join(targetDir, 'keep.txt'), 'keep')
+
+    await expect(scaffoldProject(targetDir, { template: 'minimal' })).rejects.toThrow(
+      'Target directory is not empty',
+    )
+  })
+
+  it('overwrites non-empty directory with --yes', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
+    dirs.push(root)
+
+    const targetDir = path.join(root, 'overwrite')
+    await fs.mkdir(targetDir, { recursive: true })
+    await fs.writeFile(path.join(targetDir, 'old.txt'), 'old')
+
+    await scaffoldProject(targetDir, { template: 'minimal', yes: true })
+
+    await expect(fs.stat(path.join(targetDir, 'old.txt'))).rejects.toThrow()
+    await expect(fs.stat(path.join(targetDir, 'src/entry-client.ts'))).resolves.toBeDefined()
+  })
 })

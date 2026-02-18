@@ -1,5 +1,7 @@
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
+import { stdin as input, stdout as output } from 'node:process'
+import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 
 import { cac } from 'cac'
@@ -54,10 +56,15 @@ export async function scaffoldProject(
   const templateDir = resolveTemplateDir(templateName)
 
   const existing = await readDirSafe(targetDir)
-  if (existing.length > 0 && !options.force) {
-    throw new Error(
-      `[create-fict] Target directory is not empty: ${targetDir}. Use --force to overwrite.`,
-    )
+  if (existing.length > 0) {
+    const canOverwrite = await shouldOverwriteDirectory(targetDir, options)
+    if (!canOverwrite) {
+      throw new Error(
+        `[create-fict] Target directory is not empty: ${targetDir}. Use --force or --yes to overwrite.`,
+      )
+    }
+
+    await fs.rm(targetDir, { recursive: true, force: true })
   }
 
   await fs.mkdir(targetDir, { recursive: true })
@@ -88,13 +95,39 @@ function resolveTemplateDir(templateName: string): string {
 }
 
 function normalizePackageName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-._~]/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '') || 'fict-app'
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-._~]/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '') || 'fict-app'
+  )
+}
+
+async function shouldOverwriteDirectory(
+  targetDir: string,
+  options: CreateFictOptions,
+): Promise<boolean> {
+  if (options.force || options.yes) {
+    return true
+  }
+
+  if (!input.isTTY || !output.isTTY) {
+    return false
+  }
+
+  const rl = createInterface({ input, output })
+  try {
+    const answer = await rl.question(
+      pc.yellow(`Target directory ${targetDir} is not empty. Overwrite? [y/N] `),
+    )
+    const normalized = answer.trim().toLowerCase()
+    return normalized === 'y' || normalized === 'yes'
+  } finally {
+    rl.close()
+  }
 }
 
 async function copyDirectory(from: string, to: string): Promise<void> {
