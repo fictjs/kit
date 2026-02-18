@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process'
+import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { cac } from 'cac'
@@ -145,13 +147,22 @@ async function runBuild(options: CommonCliOptions): Promise<void> {
 async function runPreview(options: ServerCliOptions): Promise<void> {
   const cwd = process.cwd()
   const resolved = await loadConfig(cwd, options.config)
+  const host = options.host ?? process.env.HOST
+  const port = options.port ? toNumber(options.port) : undefined
+
+  const nodeEntry = path.join(resolved.outDir, 'index.js')
+  if (await pathExists(nodeEntry)) {
+    const nodePreviewOptions: { host?: string; port?: number } = {}
+    if (host !== undefined) nodePreviewOptions.host = host
+    if (port !== undefined) nodePreviewOptions.port = port
+    await runNodePreview(nodeEntry, nodePreviewOptions)
+    return
+  }
+
   const plugins = fictKit(toPluginOptions(options.config))
   const previewOptions: NonNullable<Parameters<typeof preview>[0]>['preview'] = {}
-  if (options.host) previewOptions.host = options.host
-  if (options.port) {
-    const port = toNumber(options.port)
-    if (port !== undefined) previewOptions.port = port
-  }
+  if (host) previewOptions.host = host
+  if (port !== undefined) previewOptions.port = port
   if (options.open !== undefined) previewOptions.open = options.open
 
   const previewServer = await preview({
@@ -222,4 +233,49 @@ function toNumber(input?: string): number | undefined {
 function toPluginOptions(config?: string): CommonCliOptions {
   if (!config) return {}
   return { config }
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function runNodePreview(
+  entryFile: string,
+  options: { host?: string; port?: number },
+): Promise<void> {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  if (options.host) env.HOST = options.host
+  if (options.port !== undefined) env.PORT = String(options.port)
+
+  console.log(pc.cyan(`[fict-kit] preview using adapter output: ${entryFile}`))
+
+  const child = spawn(process.execPath, [entryFile], {
+    stdio: 'inherit',
+    env,
+  })
+
+  const stop = () => {
+    child.kill('SIGTERM')
+  }
+
+  process.once('SIGINT', stop)
+  process.once('SIGTERM', stop)
+
+  await new Promise<void>((resolve, reject) => {
+    child.once('exit', code => {
+      process.off('SIGINT', stop)
+      process.off('SIGTERM', stop)
+      if (code === 0 || code === null) {
+        resolve()
+      } else {
+        reject(new Error(`[fict-kit] preview server exited with code ${code}`))
+      }
+    })
+    child.once('error', reject)
+  })
 }
