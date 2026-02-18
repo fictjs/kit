@@ -150,6 +150,23 @@ export function createRequestHandler(options: HandlerOptions) {
         return apiResponse
       }
 
+      const leafRouteMeta = await resolveLeafRouteMeta({
+        matches,
+        routeMap,
+      })
+      applyCacheMeta(responseHeaders, leafRouteMeta)
+
+      if (leafRouteMeta?.ssr === false) {
+        const template = await options.getTemplate(url)
+        const payload = template.includes('<!--app-html-->')
+          ? template.replace('<!--app-html-->', '')
+          : template
+
+        const headers = new Headers(responseHeaders)
+        headers.set('content-type', 'text/html; charset=utf-8')
+        return new Response(payload, { status: responseStatus, headers })
+      }
+
       const routeData = await loadMatchedRouteData({
         event: baseEvent,
         matches,
@@ -512,4 +529,31 @@ function isRedirectShape(
   if (!value || typeof value !== 'object') return false
   const candidate = value as { location?: unknown; status?: unknown; headers?: unknown }
   return typeof candidate.location === 'string'
+}
+
+async function resolveLeafRouteMeta(input: {
+  matches: RouteMatch[]
+  routeMap: Map<string, ServerRouteEntry>
+}): Promise<RouteModuleExports['route'] | undefined> {
+  const leaf = input.matches[input.matches.length - 1]
+  if (!leaf) return undefined
+
+  const routeId = getRouteId(leaf)
+  if (!routeId) return undefined
+
+  const entry = input.routeMap.get(routeId)
+  if (!entry) return undefined
+
+  const module = await entry.module()
+  return module.route
+}
+
+function applyCacheMeta(headers: Headers, routeMeta: RouteModuleExports['route'] | undefined): void {
+  const maxAge = routeMeta?.cache?.maxAge
+  if (maxAge === undefined || !Number.isFinite(maxAge)) {
+    return
+  }
+
+  const normalized = Math.max(0, Math.floor(maxAge))
+  headers.set('cache-control', `public, max-age=${normalized}`)
 }

@@ -193,4 +193,56 @@ describe('createRequestHandler', () => {
       error: 'internal_error',
     })
   })
+
+  it('skips SSR render when route meta sets ssr false', async () => {
+    const loadSpy = vi.fn(async () => ({ secret: true }))
+
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'spa',
+          path: '/spa',
+          module: async () => ({
+            route: {
+              ssr: false,
+            },
+            load: loadSpy,
+          }),
+        },
+      ],
+      getTemplate: () => '<html><body><main><!--app-html--></main></body></html>',
+      render: () => '<div>server rendered</div>',
+    })
+
+    const response = await handler(new Request('http://local/spa'))
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('<html><body><main></main></body></html>')
+    expect(loadSpy).not.toHaveBeenCalled()
+  })
+
+  it('applies cache-control from route meta cache.maxAge', async () => {
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'home',
+          path: '/',
+          module: async () => ({
+            route: {
+              cache: {
+                maxAge: 120,
+              },
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>home</div>',
+    })
+
+    const response = await handler(new Request('http://local/'))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('public, max-age=120')
+  })
 })
