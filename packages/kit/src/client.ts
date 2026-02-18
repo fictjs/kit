@@ -1,7 +1,86 @@
+import {
+  installResumableLoader,
+  type PrefetchStrategy,
+  type ResumableLoaderOptions,
+} from '@fictjs/runtime/loader'
+
 export interface ClientRuntimeOptions {
+  document?: Document
+  snapshotScriptId?: string
+  manifestPath?: string
   events?: string[]
+  prefetch?: PrefetchStrategy | false
+  devManifestProxy?: boolean
 }
 
-export function setupClientRuntime(_options: ClientRuntimeOptions = {}): void {
-  // implemented in feature commits
+export async function setupClientRuntime(options: ClientRuntimeOptions = {}): Promise<void> {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  if (shouldInstallDevManifestProxy(options)) {
+    installDevManifestProxy()
+  } else {
+    await loadManifest(options.manifestPath ?? '/fict.manifest.json')
+  }
+
+  const loaderOptions: ResumableLoaderOptions = {}
+  if (options.document) loaderOptions.document = options.document
+  if (options.snapshotScriptId) loaderOptions.snapshotScriptId = options.snapshotScriptId
+  if (options.events) loaderOptions.events = options.events
+  if (options.prefetch !== undefined) loaderOptions.prefetch = options.prefetch
+
+  installResumableLoader(loaderOptions)
+}
+
+function shouldInstallDevManifestProxy(options: ClientRuntimeOptions): boolean {
+  if (options.devManifestProxy === false) {
+    return false
+  }
+
+  const env = (import.meta as unknown as { env?: Record<string, unknown> }).env
+  return env?.DEV === true
+}
+
+function installDevManifestProxy(): void {
+  const globalState = globalThis as Record<string, unknown>
+  const current = globalState.__FICT_MANIFEST__
+
+  if (current && typeof current === 'object') {
+    return
+  }
+
+  globalState.__FICT_MANIFEST__ = new Proxy(
+    {},
+    {
+      get(_target, key) {
+        if (typeof key !== 'string') return undefined
+        if (key.startsWith('virtual:fict-handler:')) {
+          return `/@id/${key}`
+        }
+        return undefined
+      },
+    },
+  )
+}
+
+async function loadManifest(manifestPath: string): Promise<void> {
+  const globalState = globalThis as Record<string, unknown>
+  if (globalState.__FICT_MANIFEST__ && typeof globalState.__FICT_MANIFEST__ === 'object') {
+    return
+  }
+
+  try {
+    const response = await fetch(manifestPath)
+    if (!response.ok) {
+      return
+    }
+
+    const manifest = (await response.json()) as unknown
+    if (manifest && typeof manifest === 'object') {
+      globalState.__FICT_MANIFEST__ = manifest
+    }
+  } catch {
+    // Ignore manifest loading errors in non-browser/proxy environments.
+  }
 }
