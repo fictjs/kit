@@ -7,10 +7,10 @@ import pc from 'picocolors'
 import { build, createServer, preview } from 'vite'
 
 import { addFeatures } from './add'
-import { loadConfig } from './config'
+import { loadConfig, type ResolvedFictKitConfig } from './config'
 import { assertNoRouteErrors, scanRoutes } from './core/routes/scan'
 import { collectDoctorReport, formatDoctorReport } from './doctor'
-import { fictKit } from './plugin/fict-kit'
+import { fictKit, type FictKitPluginOptions } from './plugin/fict-kit'
 import { syncGeneratedFiles } from './sync/generate'
 
 interface CommonCliOptions {
@@ -94,7 +94,8 @@ export function runCli(argv: string[] = process.argv): void {
 
 async function runDev(options: ServerCliOptions): Promise<void> {
   const cwd = process.cwd()
-  const plugins = fictKit(toPluginOptions(options.config))
+  const resolved = await loadConfig(cwd, options.config)
+  const plugins = fictKit(toPluginOptions(options.config, resolved))
   const serverOptions: NonNullable<Parameters<typeof createServer>[0]>['server'] = {}
   if (options.host) serverOptions.host = options.host
   if (options.port) {
@@ -119,7 +120,7 @@ async function runDev(options: ServerCliOptions): Promise<void> {
 async function runBuild(options: CommonCliOptions): Promise<void> {
   const cwd = process.cwd()
   const resolved = await loadConfig(cwd, options.config)
-  const plugins = fictKit(toPluginOptions(options.config))
+  const plugins = fictKit(toPluginOptions(options.config, resolved))
 
   const clientOutDir = path.join(resolved.outDir, 'client')
   const serverOutDir = path.join(resolved.outDir, 'server')
@@ -180,7 +181,7 @@ async function runPreview(options: ServerCliOptions): Promise<void> {
     return
   }
 
-  const plugins = fictKit(toPluginOptions(options.config))
+  const plugins = fictKit(toPluginOptions(options.config, resolved))
   const previewOptions: NonNullable<Parameters<typeof preview>[0]>['preview'] = {}
   if (host) previewOptions.host = host
   if (port !== undefined) previewOptions.port = port
@@ -320,9 +321,19 @@ function toNumber(input?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-function toPluginOptions(config?: string): CommonCliOptions {
-  if (!config) return {}
-  return { config }
+function toPluginOptions(
+  config?: string,
+  resolved?: Pick<ResolvedFictKitConfig, 'compiler' | 'ssr'>,
+): FictKitPluginOptions {
+  const pluginOptions: FictKitPluginOptions = {}
+  if (config) {
+    pluginOptions.config = config
+  }
+  if (resolved) {
+    pluginOptions.compiler = resolved.compiler
+    pluginOptions.resumable = resolved.ssr.resumable
+  }
+  return pluginOptions
 }
 
 async function pathExists(filePath: string): Promise<boolean> {

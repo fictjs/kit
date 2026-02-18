@@ -32,6 +32,7 @@ import {
 export interface FictKitPluginOptions {
   config?: string
   compiler?: Record<string, unknown>
+  resumable?: boolean
 }
 
 export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
@@ -206,8 +207,8 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
     corePlugin,
     kitTreeShake(),
     fict({
-      resumable: true,
       ...(options.compiler ?? {}),
+      resumable: options.resumable ?? true,
     }),
   ]
 }
