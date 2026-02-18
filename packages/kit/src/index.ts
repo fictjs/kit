@@ -1,4 +1,11 @@
 export {
+  addFeatures,
+  listSupportedAddFeatures,
+  type AddFeature,
+  type AddFeaturesOptions,
+  type AddFeaturesResult,
+} from './add'
+export {
   defineConfig,
   loadConfig,
   mergeConfigDefaults,

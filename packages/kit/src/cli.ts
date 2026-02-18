@@ -6,6 +6,7 @@ import { cac } from 'cac'
 import pc from 'picocolors'
 import { build, createServer, preview } from 'vite'
 
+import { addFeatures } from './add'
 import { loadConfig } from './config'
 import { assertNoRouteErrors, scanRoutes } from './core/routes/scan'
 import { collectDoctorReport, formatDoctorReport } from './doctor'
@@ -20,6 +21,10 @@ interface ServerCliOptions extends CommonCliOptions {
   host?: string
   port?: string
   open?: boolean
+}
+
+interface AddCliOptions extends CommonCliOptions {
+  cwd?: string
 }
 
 export function runCli(argv: string[] = process.argv): void {
@@ -64,6 +69,14 @@ export function runCli(argv: string[] = process.argv): void {
     .option('--config <file>', 'Path to fict.config.ts')
     .action(async (options: CommonCliOptions) => {
       await runInspect(options)
+    })
+
+  cli
+    .command('add <features...>', 'Add optional features to an existing app')
+    .option('--config <file>', 'Path to fict.config.ts')
+    .option('--cwd <dir>', 'Target app directory')
+    .action(async (features: string[], options: AddCliOptions) => {
+      await runAdd(features, options)
     })
 
   cli
@@ -244,6 +257,31 @@ async function runDoctor(options: CommonCliOptions): Promise<void> {
   if (report.summary.error > 0) {
     process.exitCode = 1
   }
+}
+
+async function runAdd(features: string[], options: AddCliOptions): Promise<void> {
+  const cwd = options.cwd ? path.resolve(process.cwd(), options.cwd) : process.cwd()
+  const addOptions: { cwd: string; features: string[]; configFile?: string } = { cwd, features }
+  if (options.config !== undefined) {
+    addOptions.configFile = options.config
+  }
+
+  const result = await addFeatures(addOptions)
+
+  console.log(pc.green(`[fict-kit] added ${result.applied.length} feature(s)`))
+  console.log(`  project: ${result.cwd}`)
+  console.log(`  features: ${result.applied.join(', ')}`)
+
+  if (result.files.length > 0) {
+    console.log('  updated files:')
+    for (const file of result.files) {
+      console.log(`    - ${file}`)
+    }
+  }
+
+  console.log('\nNext steps:')
+  console.log('  pnpm install')
+  console.log('  pnpm dev')
 }
 
 function toNumber(input?: string): number | undefined {
