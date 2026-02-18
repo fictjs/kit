@@ -220,8 +220,21 @@ async function runInspect(options: CommonCliOptions): Promise<void> {
   const cwd = process.cwd()
   const resolved = await loadConfig(cwd, options.config)
   const scan = await scanRoutes({ routesDir: resolved.routesDir })
+  const doctorOptions: { cwd: string; configFile?: string } = { cwd }
+  if (options.config !== undefined) {
+    doctorOptions.configFile = options.config
+  }
+  const doctor = await collectDoctorReport(doctorOptions)
+
+  const clientOutDir = path.join(resolved.outDir, 'client')
+  const serverOutDir = path.join(resolved.outDir, 'server')
 
   const payload = {
+    environment: {
+      node: process.versions.node,
+      platform: process.platform,
+      arch: process.arch,
+    },
     config: {
       root: resolved.root,
       appRoot: resolved.appRoot,
@@ -232,6 +245,22 @@ async function runInspect(options: CommonCliOptions): Promise<void> {
       resumability: resolved.resumability,
       adapter: resolved.adapter?.name,
     },
+    build: {
+      outDir: resolved.outDir,
+      clientDir: clientOutDir,
+      serverDir: serverOutDir,
+      manifestFile: path.join(clientOutDir, 'fict.manifest.json'),
+      adapterEntryFile: path.join(resolved.outDir, 'index.js'),
+      exists: {
+        outDir: await pathExists(resolved.outDir),
+        clientDir: await pathExists(clientOutDir),
+        serverDir: await pathExists(serverOutDir),
+        manifestFile: await pathExists(path.join(clientOutDir, 'fict.manifest.json')),
+        adapterEntryFile: await pathExists(path.join(resolved.outDir, 'index.js')),
+      },
+      clientFiles: await readDirSafe(clientOutDir),
+      serverFiles: await readDirSafe(serverOutDir),
+    },
     routes: scan.routes.map(route => ({
       id: route.id,
       path: route.routePath,
@@ -240,6 +269,7 @@ async function runInspect(options: CommonCliOptions): Promise<void> {
       score: route.score,
     })),
     diagnostics: scan.diagnostics,
+    doctor,
   }
 
   console.log(JSON.stringify(payload, null, 2))
@@ -301,6 +331,15 @@ async function pathExists(filePath: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+async function readDirSafe(dirPath: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dirPath)
+    return entries.sort((left, right) => left.localeCompare(right))
+  } catch {
+    return []
   }
 }
 
