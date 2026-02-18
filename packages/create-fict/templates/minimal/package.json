@@ -1,0 +1,17 @@
+{
+  "name": "fict-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "fict-kit dev",
+    "build": "fict-kit build",
+    "preview": "fict-kit preview"
+  },
+  "dependencies": {
+    "fict": "^0.10.0",
+    "@fictjs/kit": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "@fictjs/adapter-node",
+  "version": "0.1.0",
+  "description": "Node adapter for Fict Kit",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fictjs/kit.git",
+    "directory": "packages/adapter-node"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "pnpm run build",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist coverage"
+  },
+  "peerDependencies": {
+    "@fictjs/kit": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@fictjs/kit": "workspace:*",
+    "@types/node": "^25.2.3",
+    "tsup": "^8.5.1"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "keywords": ["fict", "adapter", "node", "ssr"],
+  "license": "MIT",
+  "author": "unadlib"
+}
