@@ -93,6 +93,7 @@
     }
   },
   "devDependencies": {
+    "@types/babel__traverse": "^7.28.0",
     "@types/node": "^25.2.3",
     "tsup": "^8.5.1"
   },
