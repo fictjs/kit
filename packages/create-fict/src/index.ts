@@ -13,6 +13,8 @@ interface ResolvedFeatures {
   adapter: AdapterChoice
   eslint: boolean
   vitest: boolean
+  tailwind: boolean
+  playwright: boolean
 }
 
 export interface CreateFictOptions {
@@ -22,6 +24,8 @@ export interface CreateFictOptions {
   adapter?: AdapterChoice
   eslint?: boolean
   vitest?: boolean
+  tailwind?: boolean
+  playwright?: boolean
 }
 
 export async function runCreateFict(argv: string[] = process.argv): Promise<void> {
@@ -33,6 +37,8 @@ export async function runCreateFict(argv: string[] = process.argv): Promise<void
     .option('--adapter <adapter>', 'Deployment adapter: node or static')
     .option('--eslint', 'Include ESLint config')
     .option('--vitest', 'Include Vitest setup')
+    .option('--tailwind', 'Include Tailwind CSS setup')
+    .option('--playwright', 'Include Playwright e2e setup')
     .option('--force', 'Overwrite target directory if it exists')
     .option('--yes', 'Skip confirmations and use defaults')
     .action(async (dir = 'fict-app', options: CreateFictOptions) => {
@@ -49,7 +55,11 @@ export async function runCreateFict(argv: string[] = process.argv): Promise<void
 
       const relative = path.relative(process.cwd(), result.targetDir) || '.'
       console.log(pc.green(`\n✔ Created ${relative}`))
-      console.log(pc.dim(`  adapter: ${features.adapter}, eslint: ${features.eslint}, vitest: ${features.vitest}`))
+      console.log(
+        pc.dim(
+          `  adapter: ${features.adapter}, eslint: ${features.eslint}, vitest: ${features.vitest}, tailwind: ${features.tailwind}, playwright: ${features.playwright}`,
+        ),
+      )
       console.log('\nNext steps:')
       console.log(`  cd ${relative}`)
       console.log('  pnpm install')
@@ -180,6 +190,8 @@ function normalizeFeatureOptions(options: CreateFictOptions): ResolvedFeatures {
     adapter: options.adapter ?? 'node',
     eslint: options.eslint ?? true,
     vitest: options.vitest ?? true,
+    tailwind: options.tailwind ?? false,
+    playwright: options.playwright ?? false,
   }
 }
 
@@ -210,6 +222,14 @@ async function resolveFeatures(
 
     if (options.vitest === undefined) {
       resolved.vitest = await askYesNo(rl, 'Include Vitest?', true)
+    }
+
+    if (options.tailwind === undefined) {
+      resolved.tailwind = await askYesNo(rl, 'Include Tailwind CSS?', false)
+    }
+
+    if (options.playwright === undefined) {
+      resolved.playwright = await askYesNo(rl, 'Include Playwright?', false)
     }
   } finally {
     rl.close()
@@ -294,6 +314,37 @@ async function applyFeatureSelections(targetDir: string, features: ResolvedFeatu
     await fs.rm(path.join(targetDir, 'test'), { recursive: true, force: true })
   }
 
+  if (features.tailwind) {
+    devDependencies.tailwindcss = '^3.4.17'
+    devDependencies.postcss = '^8.5.6'
+    devDependencies.autoprefixer = '^10.4.21'
+    await fs.writeFile(path.join(targetDir, 'tailwind.config.ts'), TAILWIND_CONFIG_SOURCE)
+    await fs.writeFile(path.join(targetDir, 'postcss.config.cjs'), POSTCSS_CONFIG_SOURCE)
+    await fs.writeFile(path.join(targetDir, 'src/styles.css'), TAILWIND_STYLES_SOURCE)
+    await ensureLineInFile(path.join(targetDir, 'src/entry-client.ts'), "import './styles.css'")
+  } else {
+    delete devDependencies.tailwindcss
+    delete devDependencies.postcss
+    delete devDependencies.autoprefixer
+    await removeIfExists(path.join(targetDir, 'tailwind.config.ts'))
+    await removeIfExists(path.join(targetDir, 'postcss.config.cjs'))
+    await removeIfExists(path.join(targetDir, 'src/styles.css'))
+    await removeLineFromFile(path.join(targetDir, 'src/entry-client.ts'), "import './styles.css'")
+  }
+
+  if (features.playwright) {
+    scripts['test:e2e'] = 'playwright test'
+    devDependencies['@playwright/test'] = '^1.58.2'
+    await fs.writeFile(path.join(targetDir, 'playwright.config.ts'), PLAYWRIGHT_CONFIG_SOURCE)
+    await fs.mkdir(path.join(targetDir, 'e2e'), { recursive: true })
+    await fs.writeFile(path.join(targetDir, 'e2e/app.spec.ts'), PLAYWRIGHT_TEST_SOURCE)
+  } else {
+    delete scripts['test:e2e']
+    delete devDependencies['@playwright/test']
+    await removeIfExists(path.join(targetDir, 'playwright.config.ts'))
+    await fs.rm(path.join(targetDir, 'e2e'), { recursive: true, force: true })
+  }
+
   packageJson.scripts = sortKeys(scripts)
   packageJson.dependencies = sortKeys(dependencies)
   packageJson.devDependencies = sortKeys(devDependencies)
@@ -317,6 +368,25 @@ async function removeIfExists(filePath: string): Promise<void> {
   }
 }
 
+async function ensureLineInFile(filePath: string, line: string): Promise<void> {
+  const source = await fs.readFile(filePath, 'utf8')
+  if (source.includes(line)) {
+    return
+  }
+  await fs.writeFile(filePath, `${line}\n${source}`)
+}
+
+async function removeLineFromFile(filePath: string, line: string): Promise<void> {
+  if (!existsSync(filePath)) return
+  const source = await fs.readFile(filePath, 'utf8')
+  const next = source
+    .split('\n')
+    .filter(item => item.trim() !== line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+  await fs.writeFile(filePath, next.endsWith('\n') ? next : `${next}\n`)
+}
+
 function sortKeys<T extends Record<string, string>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b))) as T
 }
@@ -326,3 +396,13 @@ const ESLINT_CONFIG_SOURCE = `import eslint from '@eslint/js'\nimport prettier f
 const VITEST_CONFIG_SOURCE = `import { defineConfig } from 'vitest/config'\n\nexport default defineConfig({\n  test: {\n    environment: 'node',\n    include: ['test/**/*.test.ts'],\n  },\n})\n`
 
 const TEST_SOURCE = `import { describe, expect, it } from 'vitest'\n\ndescribe('app', () => {\n  it('works', () => {\n    expect(1 + 1).toBe(2)\n  })\n})\n`
+
+const TAILWIND_CONFIG_SOURCE = `import type { Config } from 'tailwindcss'\n\nconst config: Config = {\n  content: ['./index.html', './src/**/*.{ts,tsx,js,jsx}'],\n  theme: {\n    extend: {},\n  },\n  plugins: [],\n}\n\nexport default config\n`
+
+const POSTCSS_CONFIG_SOURCE = `module.exports = {\n  plugins: {\n    tailwindcss: {},\n    autoprefixer: {},\n  },\n}\n`
+
+const TAILWIND_STYLES_SOURCE = `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n`
+
+const PLAYWRIGHT_CONFIG_SOURCE = `import { defineConfig } from '@playwright/test'\n\nexport default defineConfig({\n  testDir: './e2e',\n  use: {\n    baseURL: 'http://127.0.0.1:5173',\n    headless: true,\n  },\n  webServer: {\n    command: 'pnpm dev',\n    url: 'http://127.0.0.1:5173',\n    reuseExistingServer: !process.env.CI,\n  },\n})\n`
+
+const PLAYWRIGHT_TEST_SOURCE = `import { expect, test } from '@playwright/test'\n\ntest('home page renders', async ({ page }) => {\n  await page.goto('/')\n  await expect(page.getByRole('heading', { name: 'Fict Kit' })).toBeVisible()\n})\n`
