@@ -78,4 +78,28 @@ describe('createRequestHandler', () => {
     expect(response.status).toBe(201)
     expect(await response.text()).toBe('ok')
   })
+
+  it('supports hooks.handle wrapping resolve', async () => {
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>app</div>',
+      hooks: {
+        handle: async (_event, resolve) => {
+          const response = await resolve()
+          const headers = new Headers(response.headers)
+          headers.set('x-hook', 'yes')
+          return new Response(await response.text(), {
+            status: response.status,
+            headers,
+          })
+        },
+      },
+    })
+
+    const response = await handler(new Request('http://local/'))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-hook')).toBe('yes')
+  })
 })

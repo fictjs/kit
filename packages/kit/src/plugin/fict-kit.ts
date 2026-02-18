@@ -19,9 +19,15 @@ import {
   generateEntryServerCode,
   generateRoutesModuleCode,
   getDefaultPickPlan,
+  toViteImportPath,
 } from '../core/routes/virtual-modules'
 import type { RouteModuleExports } from '../router'
-import { createRequestHandler, type RenderContext, type ServerRouteEntry } from '../server'
+import {
+  createRequestHandler,
+  type HandlerOptions,
+  type RenderContext,
+  type ServerRouteEntry,
+} from '../server'
 
 export interface FictKitPluginOptions {
   config?: string
@@ -68,7 +74,13 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
       pickPlan,
     })
     entryClientModule = generateEntryClientCode(kitConfig.resumability)
-    entryServerModule = generateEntryServerCode()
+    const hooksFile = await resolveHooksFile(kitConfig.appRoot)
+    const hooksModuleId = hooksFile ? toViteImportPath(hooksFile, root) : undefined
+    const entryServerOptions: { hooksModuleId?: string } = {}
+    if (hooksModuleId !== undefined) {
+      entryServerOptions.hooksModuleId = hooksModuleId
+    }
+    entryServerModule = generateEntryServerCode(entryServerOptions)
   }
 
   const setupWatcher = async (server: ViteDevServer) => {
@@ -107,8 +119,9 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
       try {
         const entryModule = await server.ssrLoadModule(VIRTUAL_ENTRY_SERVER)
         const render = resolveRender(entryModule)
+        const hooks = resolveHooks(entryModule)
 
-        const handler = createRequestHandler({
+        const handlerOptions: HandlerOptions = {
           mode: 'dev',
           routes: createDevServerRouteEntries(server, routes, root, pickPlan.server),
           getTemplate: async url => {
@@ -117,7 +130,12 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
             return server.transformIndexHtml(`${url.pathname}${url.search}`, template)
           },
           render,
-        })
+        }
+        if (hooks) {
+          handlerOptions.hooks = hooks
+        }
+
+        const handler = createRequestHandler(handlerOptions)
 
         const webRequest = await toWebRequest(req, parsedUrl)
         const webResponse = await handler(webRequest)
@@ -221,6 +239,30 @@ function resolveRender(entryModule: Record<string, unknown>): (ctx: RenderContex
   return async context => {
     return String(await render(context))
   }
+}
+
+function resolveHooks(entryModule: Record<string, unknown>): HandlerOptions['hooks'] | undefined {
+  const value = entryModule.hooks
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const hooksModule = value as {
+    handle?: unknown
+    handleError?: unknown
+  }
+  type HandleHook = NonNullable<NonNullable<HandlerOptions['hooks']>['handle']>
+  type HandleErrorHook = NonNullable<NonNullable<HandlerOptions['hooks']>['handleError']>
+
+  const hooks: NonNullable<HandlerOptions['hooks']> = {}
+  if (typeof hooksModule.handle === 'function') {
+    hooks.handle = hooksModule.handle as HandleHook
+  }
+  if (typeof hooksModule.handleError === 'function') {
+    hooks.handleError = hooksModule.handleError as HandleErrorHook
+  }
+
+  return hooks.handle || hooks.handleError ? hooks : undefined
 }
 
 function shouldHandleKitRequest(
@@ -343,4 +385,32 @@ function invalidateVirtualModule(server: ViteDevServer, id: string): void {
 
 function normalizeSlashes(input: string): string {
   return input.replace(/\\/g, '/')
+}
+
+async function resolveHooksFile(appRoot: string): Promise<string | undefined> {
+  const candidates = [
+    'hooks.server.ts',
+    'hooks.server.tsx',
+    'hooks.server.js',
+    'hooks.server.mjs',
+    'hooks.server.cjs',
+  ]
+
+  for (const candidate of candidates) {
+    const absolute = path.join(appRoot, candidate)
+    if (await pathExists(absolute)) {
+      return absolute
+    }
+  }
+
+  return undefined
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
+  }
 }

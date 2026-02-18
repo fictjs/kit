@@ -118,11 +118,14 @@ if (!serverEntry.routes || !serverEntry.render) {
   throw new Error('[adapter-node] server entry must export { routes, render }')
 }
 
+const hooks = normalizeHooks(serverEntry.hooks)
+
 const handler = createRequestHandler({
   mode: 'prod',
   routes: serverEntry.routes,
   getTemplate: () => readFileSync(templatePath, 'utf8'),
   render: serverEntry.render,
+  hooks,
 })
 
 const server = createServer(async (req, res) => {
@@ -238,6 +241,26 @@ function getContentType(filePath) {
   if (filePath.endsWith('.woff2')) return 'font/woff2'
   if (filePath.endsWith('.woff')) return 'font/woff'
   return 'application/octet-stream'
+}
+
+function normalizeHooks(value) {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const hooks = {}
+  if (typeof value.handle === 'function') {
+    hooks.handle = value.handle
+  }
+  if (typeof value.handleError === 'function') {
+    hooks.handleError = value.handleError
+  }
+
+  if (hooks.handle || hooks.handleError) {
+    return hooks
+  }
+
+  return undefined
 }
 `
 }

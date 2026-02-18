@@ -91,10 +91,15 @@ declare module 'virtual:fict-kit/entry-client' {
 }
 
 declare module 'virtual:fict-kit/entry-server' {
+  import type { RequestEvent } from '@fictjs/kit/server'
   import type { RenderContext } from '@fictjs/kit/server'
   import type { FileRouteEntry } from '@fictjs/kit/router'
 
   export const routes: FileRouteEntry[]
+  export const hooks: {
+    handle?: (event: RequestEvent, resolve: () => Promise<Response>) => Promise<Response>
+    handleError?: (error: unknown, event: RequestEvent) => void
+  }
   export function render(ctx: RenderContext): Promise<string> | string
 }
 `

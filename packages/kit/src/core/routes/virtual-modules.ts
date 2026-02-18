@@ -59,13 +59,18 @@ void setupClientRuntime(${options})
 `
 }
 
-export function generateEntryServerCode(): string {
+export function generateEntryServerCode(options: { hooksModuleId?: string } = {}): string {
+  const hooksCode = options.hooksModuleId
+    ? `import * as hooksModule from ${JSON.stringify(options.hooksModuleId)}\n\nexport const hooks = {\n  handle: typeof hooksModule.handle === 'function' ? hooksModule.handle : undefined,\n  handleError: typeof hooksModule.handleError === 'function' ? hooksModule.handleError : undefined,\n}\n`
+    : `export const hooks = {}\n`
+
   return `
 import { renderToString } from '@fictjs/ssr'
 import { jsx } from '@fictjs/runtime/jsx-runtime'
 
 import { FileRoutes } from '@fictjs/kit/router'
 import routes from 'virtual:fict-kit/routes.server'
+${hooksCode}
 
 export { routes }
 

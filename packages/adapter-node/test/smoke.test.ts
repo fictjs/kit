@@ -50,6 +50,7 @@ describe('adapter-node', () => {
     const source = await fs.readFile(outFile, 'utf8')
 
     expect(source).toContain("createRequestHandler")
+    expect(source).toContain('normalizeHooks')
     expect(source).toContain("server.listen")
   })
 })
