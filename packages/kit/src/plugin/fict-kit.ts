@@ -131,6 +131,7 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
             return server.transformIndexHtml(`${url.pathname}${url.search}`, template)
           },
           render,
+          ssrEnabled: kitConfig.ssr.enabled,
         }
         if (hooks) {
           handlerOptions.hooks = hooks

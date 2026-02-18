@@ -28,6 +28,7 @@ export function adapterNode(options: AdapterNodeOptions = {}): Adapter {
         serverEntryRelative,
         host: options.host ?? '0.0.0.0',
         port: options.port ?? 3000,
+        ssrEnabled: context.kitConfig.ssr.enabled,
       })
 
       await fs.mkdir(path.dirname(outFile), { recursive: true })
@@ -89,6 +90,7 @@ interface NodeServerSourceOptions {
   serverEntryRelative: string
   host: string
   port: number
+  ssrEnabled: boolean
 }
 
 function createNodeServerSource(options: NodeServerSourceOptions): string {
@@ -125,6 +127,7 @@ const handler = createRequestHandler({
   routes: serverEntry.routes,
   getTemplate: () => readFileSync(templatePath, 'utf8'),
   render: serverEntry.render,
+  ssrEnabled: ${JSON.stringify(options.ssrEnabled)},
   hooks,
 })
 

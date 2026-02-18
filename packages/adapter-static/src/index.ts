@@ -96,6 +96,10 @@ async function prerenderStaticPages(
   targetDir: string,
   requestedServerEntry?: string,
 ): Promise<string[]> {
+  if (!context.kitConfig.ssr.enabled) {
+    return []
+  }
+
   const serverEntryPath = await resolveServerEntry(context, requestedServerEntry)
   if (!serverEntryPath) {
     return []

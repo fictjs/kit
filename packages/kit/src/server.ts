@@ -47,6 +47,7 @@ export interface HandlerOptions {
   routes: ServerRouteEntry[]
   getTemplate: TemplateFn
   render: RenderFn
+  ssrEnabled?: boolean
   hooks?: {
     handle?: (event: RequestEvent, resolve: () => Promise<Response>) => Promise<Response>
     handleError?: (error: unknown, event: RequestEvent) => void
@@ -156,7 +157,8 @@ export function createRequestHandler(options: HandlerOptions) {
       })
       applyCacheMeta(responseHeaders, leafRouteMeta)
 
-      if (leafRouteMeta?.ssr === false) {
+      const ssrEnabled = options.ssrEnabled ?? true
+      if (!ssrEnabled || leafRouteMeta?.ssr === false) {
         const template = await options.getTemplate(url)
         const payload = template.includes('<!--app-html-->')
           ? template.replace('<!--app-html-->', '')

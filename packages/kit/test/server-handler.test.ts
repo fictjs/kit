@@ -245,4 +245,29 @@ describe('createRequestHandler', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('public, max-age=120')
   })
+
+  it('respects global ssrEnabled=false option', async () => {
+    const loadSpy = vi.fn(async () => ({ value: 1 }))
+
+    const handler = createRequestHandler({
+      mode: 'dev',
+      ssrEnabled: false,
+      routes: [
+        {
+          id: 'home',
+          path: '/',
+          module: async () => ({
+            load: loadSpy,
+          }),
+        },
+      ],
+      getTemplate: () => '<html><body><!--app-html--></body></html>',
+      render: () => '<div>rendered</div>',
+    })
+
+    const response = await handler(new Request('http://local/'))
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('<html><body></body></html>')
+    expect(loadSpy).not.toHaveBeenCalled()
+  })
 })
