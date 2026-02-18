@@ -122,6 +122,11 @@ export async function loadConfig(
   const root = path.resolve(cwd)
   const resolvedPath = resolveConfigPath(root, configFile)
 
+  if (configFile && !resolvedPath) {
+    const requested = path.resolve(root, configFile)
+    throw new Error(`[fict-kit] Config file not found: ${requested}`)
+  }
+
   if (!resolvedPath) {
     return mergeConfigDefaults({}, root)
   }
