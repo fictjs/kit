@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createRequestHandler, redirect } from '../src/server'
 
@@ -101,5 +101,96 @@ describe('createRequestHandler', () => {
     const response = await handler(new Request('http://local/'))
     expect(response.status).toBe(200)
     expect(response.headers.get('x-hook')).toBe('yes')
+  })
+
+  it('returns structured error payload for data endpoint failures', async () => {
+    const handleError = vi.fn()
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'index',
+          path: '/',
+          module: async () => ({
+            load: async () => {
+              throw new Error('boom')
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>app</div>',
+      hooks: {
+        handleError,
+      },
+    })
+
+    const response = await handler(new Request('http://local/_fict/data/index?url=%2F'))
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      type: 'data',
+      error: 'internal_error',
+    })
+    expect(handleError).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns structured error payload for action endpoint failures', async () => {
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'index',
+          path: '/',
+          module: async () => ({
+            action: async () => {
+              throw new Error('boom')
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>app</div>',
+    })
+
+    const response = await handler(
+      new Request('http://local/_fict/action/index?url=%2F', { method: 'POST' }),
+    )
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      type: 'action',
+      error: 'internal_error',
+    })
+  })
+
+  it('returns json error payload for api failures', async () => {
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'users',
+          path: '/users',
+          module: async () => ({
+            GET: async () => {
+              throw new Error('api error')
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>app</div>',
+    })
+
+    const response = await handler(
+      new Request('http://local/users', {
+        headers: {
+          accept: 'application/json',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: 'internal_error',
+    })
   })
 })

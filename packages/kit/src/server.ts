@@ -178,16 +178,45 @@ export function createRequestHandler(options: HandlerOptions) {
       return new Response(payload, { status: responseStatus, headers })
     }
 
-    if (options.hooks?.handle) {
+    const respondInternalError = (error: unknown): Response => {
+      options.hooks?.handleError?.(error, baseEvent)
+
+      if (isDataRequest(url)) {
+        return json({ type: 'data', error: 'internal_error' }, 500)
+      }
+
+      if (isActionRequest(url)) {
+        return json({ type: 'action', error: 'internal_error' }, 500)
+      }
+
+      const accept = request.headers.get('accept') ?? ''
+      const isJsonRequest = accept.includes('application/json')
+      const method = request.method.toUpperCase()
+      const isMutation = method !== 'GET' && method !== 'HEAD'
+      if (isJsonRequest || isMutation) {
+        return json({ error: 'internal_error' }, 500)
+      }
+
+      return new Response('Internal Server Error', { status: 500 })
+    }
+
+    const runResolve = async (): Promise<Response> => {
       try {
-        return await options.hooks.handle(baseEvent, resolve)
+        return await resolve()
       } catch (error) {
-        options.hooks.handleError?.(error, baseEvent)
-        return new Response('Internal Server Error', { status: 500 })
+        return respondInternalError(error)
       }
     }
 
-    return resolve()
+    if (options.hooks?.handle) {
+      try {
+        return await options.hooks.handle(baseEvent, runResolve)
+      } catch (error) {
+        return respondInternalError(error)
+      }
+    }
+
+    return runResolve()
   }
 }
 
