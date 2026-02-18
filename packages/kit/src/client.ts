@@ -18,10 +18,13 @@ export async function setupClientRuntime(options: ClientRuntimeOptions = {}): Pr
     return
   }
 
-  if (shouldInstallDevManifestProxy(options)) {
+  if (options.devManifestProxy === true) {
     installDevManifestProxy()
   } else {
-    await loadManifest(options.manifestPath ?? '/fict.manifest.json')
+    const loaded = await loadManifest(options.manifestPath ?? '/fict.manifest.json')
+    if (!loaded && options.devManifestProxy !== false) {
+      installDevManifestProxy()
+    }
   }
 
   const loaderOptions: ResumableLoaderOptions = {}
@@ -31,15 +34,6 @@ export async function setupClientRuntime(options: ClientRuntimeOptions = {}): Pr
   if (options.prefetch !== undefined) loaderOptions.prefetch = options.prefetch
 
   installResumableLoader(loaderOptions)
-}
-
-function shouldInstallDevManifestProxy(options: ClientRuntimeOptions): boolean {
-  if (options.devManifestProxy === false) {
-    return false
-  }
-
-  const env = (import.meta as unknown as { env?: Record<string, unknown> }).env
-  return env?.DEV === true
 }
 
 function installDevManifestProxy(): void {
@@ -64,23 +58,26 @@ function installDevManifestProxy(): void {
   )
 }
 
-async function loadManifest(manifestPath: string): Promise<void> {
+async function loadManifest(manifestPath: string): Promise<boolean> {
   const globalState = globalThis as Record<string, unknown>
   if (globalState.__FICT_MANIFEST__ && typeof globalState.__FICT_MANIFEST__ === 'object') {
-    return
+    return true
   }
 
   try {
     const response = await fetch(manifestPath)
     if (!response.ok) {
-      return
+      return false
     }
 
     const manifest = (await response.json()) as unknown
     if (manifest && typeof manifest === 'object') {
       globalState.__FICT_MANIFEST__ = manifest
+      return true
     }
+    return false
   } catch {
     // Ignore manifest loading errors in non-browser/proxy environments.
+    return false
   }
 }
