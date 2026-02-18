@@ -167,4 +167,40 @@ describe('adapter-static', () => {
     ) as { prerenderedPaths: string[] }
     expect(metadata.prerenderedPaths).toEqual([])
   })
+
+  it('throws when server entry does not export routes/render', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fict-kit-adapter-static-'))
+    dirs.push(root)
+
+    const outDir = path.join(root, 'dist')
+    const clientDir = path.join(outDir, 'client')
+    const serverDir = path.join(outDir, 'server')
+
+    await fs.mkdir(clientDir, { recursive: true })
+    await fs.mkdir(serverDir, { recursive: true })
+    await fs.writeFile(path.join(clientDir, 'index.html'), '<html></html>')
+    await fs.writeFile(path.join(serverDir, 'entry-server.js'), 'export const noop = true\n')
+
+    const adapter = adapterStatic()
+    await expect(
+      adapter.adapt({
+        kitConfig: {
+          root,
+          appRoot: path.join(root, 'src'),
+          routesDir: path.join(root, 'src/routes'),
+          outDir,
+          ssr: { enabled: true, stream: false, resumable: true },
+          compiler: {},
+          devtools: true,
+          resumability: {
+            events: ['click'],
+            prefetch: { visibility: true, visibilityMargin: '200px', hover: true, hoverDelay: 50 },
+          },
+        },
+        clientDir,
+        serverDir,
+        outDir,
+      }),
+    ).rejects.toThrow('server entry must export { routes, render }')
+  })
 })

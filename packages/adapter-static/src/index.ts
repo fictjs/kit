@@ -113,7 +113,7 @@ async function prerenderStaticPages(
 
   const serverEntry = (await import(pathToFileURL(serverEntryPath).href)) as ServerEntryModule
   if (!Array.isArray(serverEntry.routes) || typeof serverEntry.render !== 'function') {
-    return []
+    throw new Error('[adapter-static] server entry must export { routes, render }')
   }
 
   const hooks = normalizeHooks(serverEntry.hooks)
