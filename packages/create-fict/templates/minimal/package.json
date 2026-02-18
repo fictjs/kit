@@ -5,11 +5,15 @@
   "scripts": {
     "dev": "fict-kit dev",
     "build": "fict-kit build",
-    "preview": "fict-kit preview"
+    "preview": "fict-kit preview",
+    "sync": "fict-kit sync",
+    "inspect": "fict-kit inspect"
   },
   "dependencies": {
     "fict": "^0.10.0",
-    "@fictjs/kit": "^0.1.0"
+    "@fictjs/kit": "^0.1.0",
+    "@fictjs/adapter-node": "^0.1.0",
+    "@fictjs/router": "^0.10.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

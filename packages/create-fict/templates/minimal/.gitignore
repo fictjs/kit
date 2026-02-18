@@ -1,0 +1,4 @@
+node_modules
+.fict
+dist
+.DS_Store
