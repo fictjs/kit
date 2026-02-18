@@ -8,6 +8,7 @@ import { build, createServer, preview } from 'vite'
 
 import { loadConfig } from './config'
 import { assertNoRouteErrors, scanRoutes } from './core/routes/scan'
+import { collectDoctorReport, formatDoctorReport } from './doctor'
 import { fictKit } from './plugin/fict-kit'
 import { syncGeneratedFiles } from './sync/generate'
 
@@ -63,6 +64,13 @@ export function runCli(argv: string[] = process.argv): void {
     .option('--config <file>', 'Path to fict.config.ts')
     .action(async (options: CommonCliOptions) => {
       await runInspect(options)
+    })
+
+  cli
+    .command('doctor', 'Run environment and build diagnostics')
+    .option('--config <file>', 'Path to fict.config.ts')
+    .action(async (options: CommonCliOptions) => {
+      await runDoctor(options)
     })
 
   cli.help()
@@ -222,6 +230,20 @@ async function runInspect(options: CommonCliOptions): Promise<void> {
   }
 
   console.log(JSON.stringify(payload, null, 2))
+}
+
+async function runDoctor(options: CommonCliOptions): Promise<void> {
+  const doctorOptions: { cwd: string; configFile?: string } = { cwd: process.cwd() }
+  if (options.config !== undefined) {
+    doctorOptions.configFile = options.config
+  }
+
+  const report = await collectDoctorReport(doctorOptions)
+
+  console.log(formatDoctorReport(report))
+  if (report.summary.error > 0) {
+    process.exitCode = 1
+  }
 }
 
 function toNumber(input?: string): number | undefined {
