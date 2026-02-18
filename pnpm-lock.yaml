@@ -45,6 +45,18 @@ importers:
         specifier: ^8.5.1
         version: 8.5.1(postcss@8.5.6)(typescript@5.9.3)
 
+  packages/adapter-static:
+    devDependencies:
+      '@fictjs/kit':
+        specifier: workspace:*
+        version: link:../kit
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.6)(typescript@5.9.3)
+
   packages/create-fict:
     dependencies:
       cac:
