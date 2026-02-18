@@ -33,12 +33,15 @@ describe('syncGeneratedFiles', () => {
       ],
     })
 
-    expect(result.files).toHaveLength(3)
+    expect(result.files).toHaveLength(4)
 
     const routesDts = await fs.readFile(path.join(outDir, 'routes.d.ts'), 'utf8')
     expect(routesDts).toContain("'users/[id]': { id: string }")
 
     const virtualDts = await fs.readFile(path.join(outDir, 'virtual-modules.d.ts'), 'utf8')
     expect(virtualDts).toContain("declare module 'virtual:fict-kit/routes'")
+
+    const envDts = await fs.readFile(path.join(outDir, 'env.d.ts'), 'utf8')
+    expect(envDts).toContain('interface ImportMetaEnv')
   })
 })

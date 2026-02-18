@@ -22,12 +22,14 @@ export async function syncGeneratedFiles(
   const routesFile = path.join(outDir, 'routes.d.ts')
   const linksFile = path.join(outDir, 'links.d.ts')
   const virtualModulesFile = path.join(outDir, 'virtual-modules.d.ts')
-  const files = [routesFile, linksFile, virtualModulesFile]
+  const envFile = path.join(outDir, 'env.d.ts')
+  const files = [routesFile, linksFile, virtualModulesFile, envFile]
 
   await Promise.all([
     fs.writeFile(routesFile, buildRoutesDeclaration(options.routes)),
     fs.writeFile(linksFile, buildLinksDeclaration(options.routes)),
     fs.writeFile(virtualModulesFile, buildVirtualModulesDeclaration()),
+    fs.writeFile(envFile, buildEnvDeclaration()),
   ])
 
   return {
@@ -96,6 +98,24 @@ declare module 'virtual:fict-kit/entry-server' {
   export function render(ctx: RenderContext): Promise<string> | string
 }
 `
+}
+
+function buildEnvDeclaration(): string {
+  return [
+    'interface ImportMetaEnv {',
+    '  readonly MODE: string',
+    '  readonly DEV: boolean',
+    '  readonly PROD: boolean',
+    '  readonly BASE_URL: string',
+    '  readonly SSR: boolean',
+    '  readonly [key: `PUBLIC_${string}`]: string | undefined',
+    '}',
+    '',
+    'interface ImportMeta {',
+    '  readonly env: ImportMetaEnv',
+    '}',
+    '',
+  ].join('\n')
 }
 
 function segmentParamsToType(segments: RouteSegment[]): string {
