@@ -30,9 +30,7 @@ export function generateRoutesModuleCode(args: {
   const picks = (args.pickPlan ?? getDefaultPickPlan())[args.target]
 
   const items = args.routes.map(route => {
-    const importPath = toViteImportPath(route.file, args.root)
-    const query = picks.map(pick => `pick=${encodeURIComponent(pick)}`).join('&')
-    const moduleId = `${importPath}?${query}`
+    const moduleId = buildPickModuleId(route.file, args.root, picks)
 
     return `{
       id: ${JSON.stringify(route.id)},
@@ -92,7 +90,13 @@ export function render(input) {
 `
 }
 
-function toViteImportPath(file: string, root: string): string {
+export function buildPickModuleId(file: string, root: string, picks: string[]): string {
+  const importPath = toViteImportPath(file, root)
+  const query = picks.map(pick => `pick=${encodeURIComponent(pick)}`).join('&')
+  return `${importPath}?${query}`
+}
+
+export function toViteImportPath(file: string, root: string): string {
   const normalizedFile = normalizeSlashes(path.resolve(file))
   const normalizedRoot = normalizeSlashes(path.resolve(root))
 
