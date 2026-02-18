@@ -51,6 +51,8 @@ describe('adapter-node', () => {
 
     expect(source).toContain("createRequestHandler")
     expect(source).toContain('normalizeHooks')
+    expect(source).toContain("path.resolve(clientDir, '.' + pathname)")
+    expect(source).toContain('path.relative(clientDir, candidate)')
     expect(source).toContain("server.listen")
   })
 })

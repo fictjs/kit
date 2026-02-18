@@ -167,8 +167,9 @@ async function tryServeStatic(req, requestUrl) {
     return null
   }
 
-  const candidate = path.join(clientDir, pathname)
-  if (!candidate.startsWith(clientDir)) {
+  const candidate = path.resolve(clientDir, '.' + pathname)
+  const relativeCandidate = path.relative(clientDir, candidate)
+  if (relativeCandidate.startsWith('..') || path.isAbsolute(relativeCandidate)) {
     return new Response('Forbidden', { status: 403 })
   }
 
