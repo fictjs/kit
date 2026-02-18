@@ -118,6 +118,33 @@ describe('addFeatures', () => {
       }),
     ).rejects.toThrow('Unknown add feature')
   })
+
+  it('throws when existing config cannot be safely updated', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fict-kit-add-'))
+    dirs.push(root)
+
+    await writeFixture(root, {
+      'package.json': JSON.stringify(
+        {
+          name: 'test-app',
+          private: true,
+          dependencies: {
+            '@fictjs/adapter-node': '^0.1.0',
+          },
+        },
+        null,
+        2,
+      ),
+      'fict.config.ts': 'export default { adapter: "custom" }\n',
+    })
+
+    await expect(
+      addFeatures({
+        cwd: root,
+        features: ['static'],
+      }),
+    ).rejects.toThrow('Could not safely update')
+  })
 })
 
 async function writeFixture(root: string, files: Record<string, string>): Promise<void> {

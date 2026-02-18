@@ -178,8 +178,9 @@ async function updateAdapterConfig(configFilePath: string, adapter: 'node' | 'st
 
   const source = await fs.readFile(configFilePath, 'utf8')
   if (!source.includes('defineConfig(')) {
-    await writeFile(configFilePath, defaultSource)
-    return
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
   }
 
   const adapterImport =
@@ -196,7 +197,7 @@ async function updateAdapterConfig(configFilePath: string, adapter: 'node' | 'st
   const withAdapterImport = `${adapterImport}\n${withoutAdapterImports}`.replace(/\n{3,}/g, '\n\n')
   const withAdapterProperty = withAdapterImport.includes('adapter:')
     ? withAdapterImport.replace(/adapter:\s*[^,\n]+/g, `adapter: ${adapterCall}`)
-    : withAdapterImport.replace(/defineConfig\(\{/, `defineConfig({\n  adapter: ${adapterCall},`)
+    : injectAdapterProperty(withAdapterImport, adapterCall, configFilePath)
 
   await writeFile(configFilePath, normalizeTrailingNewline(withAdapterProperty))
 }
@@ -251,6 +252,17 @@ function normalizeTrailingNewline(source: string): string {
 
 function sortKeys<T extends Record<string, string>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b))) as T
+}
+
+function injectAdapterProperty(source: string, adapterCall: string, configFilePath: string): string {
+  const pattern = /defineConfig\(\s*\{/
+  if (!pattern.test(source)) {
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
+  }
+
+  return source.replace(pattern, match => `${match}\n  adapter: ${adapterCall},`)
 }
 
 const ESLINT_CONFIG_SOURCE = `import eslint from '@eslint/js'\nimport prettier from 'eslint-config-prettier'\nimport tseslint from 'typescript-eslint'\n\nexport default tseslint.config(\n  {\n    ignores: ['dist/**', 'node_modules/**'],\n  },\n  eslint.configs.recommended,\n  ...tseslint.configs.recommended,\n  prettier,\n)\n`
