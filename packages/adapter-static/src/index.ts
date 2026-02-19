@@ -100,8 +100,8 @@ async function prerenderStaticPages(
     return []
   }
 
-  const serverEntryPath = await resolveServerEntry(context, requestedServerEntry)
-  if (!serverEntryPath) {
+  const serverEntryCandidates = await resolveServerEntryCandidates(context, requestedServerEntry)
+  if (serverEntryCandidates.length === 0) {
     return []
   }
 
@@ -111,10 +111,7 @@ async function prerenderStaticPages(
   }
   const template = await fs.readFile(templatePath, 'utf8')
 
-  const serverEntry = (await import(pathToFileURL(serverEntryPath).href)) as ServerEntryModule
-  if (!Array.isArray(serverEntry.routes) || typeof serverEntry.render !== 'function') {
-    throw new Error('[adapter-static] server entry must export { routes, render }')
-  }
+  const serverEntry = await loadServerEntry(serverEntryCandidates)
 
   const hooks = normalizeHooks(serverEntry.hooks)
   const handlerOptions: HandlerOptions = {
@@ -187,28 +184,26 @@ function toStaticHtmlFile(targetDir: string, routePath: string): string {
   return path.join(targetDir, normalized, 'index.html')
 }
 
-async function resolveServerEntry(
+async function resolveServerEntryCandidates(
   context: AdapterContext,
   requested?: string,
-): Promise<string | undefined> {
+): Promise<string[]> {
   if (requested) {
     const absolute = path.isAbsolute(requested) ? requested : path.join(context.outDir, requested)
-    return absolute
+    return [absolute]
   }
 
   const expected = path.join(context.serverDir, 'entry-server.js')
   if (await pathExists(expected)) {
-    return expected
+    return [expected]
   }
 
   const entries = await readDirSafe(context.serverDir)
-  const jsEntries = entries.filter(entry => entry.endsWith('.js')).sort((left, right) => left.localeCompare(right))
-  const fallback = jsEntries[0]
-  if (!fallback) {
-    return undefined
-  }
+  const jsEntries = entries
+    .filter(entry => entry.endsWith('.js'))
+    .sort((left, right) => left.localeCompare(right))
 
-  return path.join(context.serverDir, fallback)
+  return jsEntries.map(entry => path.join(context.serverDir, entry))
 }
 
 async function readDirSafe(dirPath: string): Promise<string[]> {
@@ -246,4 +241,35 @@ function normalizeHooks(input: unknown): HandlerOptions['hooks'] | undefined {
   }
 
   return hooks.handle || hooks.handleError ? hooks : undefined
+}
+
+async function loadServerEntry(candidates: string[]): Promise<{
+  routes: ServerRouteEntry[]
+  render: (ctx: RenderContext) => Promise<string> | string
+  hooks?: HandlerOptions['hooks']
+}> {
+  const invalidCandidates: string[] = []
+
+  for (const candidate of candidates) {
+    if (!(await pathExists(candidate))) {
+      continue
+    }
+
+    const loaded = (await import(pathToFileURL(candidate).href)) as ServerEntryModule
+    if (Array.isArray(loaded.routes) && typeof loaded.render === 'function') {
+      return {
+        routes: loaded.routes,
+        render: loaded.render,
+        hooks: loaded.hooks,
+      }
+    }
+
+    invalidCandidates.push(candidate)
+  }
+
+  const reason =
+    invalidCandidates.length > 0
+      ? `Checked: ${invalidCandidates.join(', ')}`
+      : 'No server entry candidates were found.'
+  throw new Error(`[adapter-static] server entry must export { routes, render }. ${reason}`)
 }

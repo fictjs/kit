@@ -203,4 +203,55 @@ describe('adapter-static', () => {
       }),
     ).rejects.toThrow('server entry must export { routes, render }')
   })
+
+  it('probes multiple server entry candidates and uses valid one', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fict-kit-adapter-static-'))
+    dirs.push(root)
+
+    const outDir = path.join(root, 'dist')
+    const clientDir = path.join(outDir, 'client')
+    const serverDir = path.join(outDir, 'server')
+
+    await fs.mkdir(clientDir, { recursive: true })
+    await fs.mkdir(serverDir, { recursive: true })
+    await fs.writeFile(path.join(clientDir, 'index.html'), '<html><body><!--app-html--></body></html>')
+    await fs.writeFile(path.join(serverDir, 'a-chunk.js'), 'export const chunk = true\n')
+    await fs.writeFile(
+      path.join(serverDir, 'z-entry.js'),
+      [
+        'export const routes = [',
+        "  { id: 'index', path: '/', module: async () => ({ route: { prerender: true } }) },",
+        ']',
+        'export async function render(ctx) {',
+        "  return '<main>' + ctx.url.pathname + '</main>'",
+        '}',
+        '',
+      ].join('\n'),
+    )
+
+    const adapter = adapterStatic()
+    await adapter.adapt({
+      kitConfig: {
+        root,
+        appRoot: path.join(root, 'src'),
+        routesDir: path.join(root, 'src/routes'),
+        outDir,
+        ssr: { enabled: true, stream: false, resumable: true },
+        compiler: {},
+        devtools: true,
+        resumability: {
+          events: ['click'],
+          prefetch: { visibility: true, visibilityMargin: '200px', hover: true, hoverDelay: 50 },
+        },
+      },
+      clientDir,
+      serverDir,
+      outDir,
+    })
+
+    const staticDir = path.join(outDir, 'static')
+    await expect(fs.stat(path.join(staticDir, 'index.html'))).resolves.toBeDefined()
+    const indexHtml = await fs.readFile(path.join(staticDir, 'index.html'), 'utf8')
+    expect(indexHtml).toContain('<main>/</main>')
+  })
 })
