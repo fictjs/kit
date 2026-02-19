@@ -4,9 +4,9 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
-import { scaffoldProject } from '../../create-fict/src/index'
+import { scaffoldProject, type CreateFictOptions } from '../../create-fict/src/index'
 
 const dirs: string[] = []
 const childProcesses: ChildProcess[] = []
@@ -14,6 +14,7 @@ const childProcesses: ChildProcess[] = []
 const kitPackageRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const repoRoot = path.resolve(kitPackageRoot, '..', '..')
 const adapterNodePackageRoot = path.join(repoRoot, 'packages', 'adapter-node')
+const adapterStaticPackageRoot = path.join(repoRoot, 'packages', 'adapter-static')
 const fixtureRootBase = path.join(kitPackageRoot, '.tmp-tests')
 const cliBinPath = path.join(kitPackageRoot, 'bin', 'fict-kit.js')
 
@@ -25,19 +26,16 @@ afterEach(async () => {
   dirs.length = 0
 })
 
+beforeAll(async () => {
+  await runCommand('pnpm', ['--filter', '@fictjs/kit', 'build'], repoRoot)
+  await runCommand('pnpm', ['--filter', '@fictjs/adapter-node', 'build'], repoRoot)
+  await runCommand('pnpm', ['--filter', '@fictjs/adapter-static', 'build'], repoRoot)
+}, 120_000)
+
 describe('cli e2e', () => {
   it(
     'runs build and preview commands for a scaffolded app',
     async () => {
-      await ensurePackageBuilt({
-        packageName: '@fictjs/kit',
-        artifact: path.join(kitPackageRoot, 'dist', 'cli.js'),
-      })
-      await ensurePackageBuilt({
-        packageName: '@fictjs/adapter-node',
-        artifact: path.join(adapterNodePackageRoot, 'dist', 'index.js'),
-      })
-
       const fixtureRoot = await createFixture('cli-e2e')
       await linkWorkspacePackage(fixtureRoot, '@fictjs/kit', kitPackageRoot)
       await linkWorkspacePackage(fixtureRoot, '@fictjs/adapter-node', adapterNodePackageRoot)
@@ -86,23 +84,67 @@ describe('cli e2e', () => {
     },
     180_000,
   )
+
+  it(
+    'runs build and preview commands for a scaffolded static app',
+    async () => {
+      const fixtureRoot = await createFixture('cli-e2e-static', { adapter: 'static' })
+      await linkWorkspacePackage(fixtureRoot, '@fictjs/kit', kitPackageRoot)
+      await linkWorkspacePackage(fixtureRoot, '@fictjs/adapter-static', adapterStaticPackageRoot)
+
+      await runCliCommand(['build'], fixtureRoot)
+
+      await expect(fs.stat(path.join(fixtureRoot, 'dist', 'static', 'index.html'))).resolves.toBeDefined()
+      await expect(
+        fs.stat(path.join(fixtureRoot, 'dist', 'static', 'about', 'index.html')),
+      ).resolves.toBeDefined()
+      await expect(
+        fs.stat(path.join(fixtureRoot, 'dist', 'static', '.fict-adapter-static.json')),
+      ).resolves.toBeDefined()
+
+      const port = await getAvailablePort()
+      const previewProcess = spawn(
+        process.execPath,
+        [cliBinPath, 'preview', '--host', '127.0.0.1', '--port', String(port)],
+        {
+          cwd: fixtureRoot,
+          env: process.env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      )
+      childProcesses.push(previewProcess)
+
+      let logs = ''
+      previewProcess.stdout?.on('data', chunk => {
+        logs += chunk.toString()
+      })
+      previewProcess.stderr?.on('data', chunk => {
+        logs += chunk.toString()
+      })
+
+      const baseUrl = `http://127.0.0.1:${port}`
+      await waitForHttpReady(`${baseUrl}/`, previewProcess, () => logs)
+
+      const rootResponse = await fetch(`${baseUrl}/`)
+      expect(rootResponse.status).toBe(200)
+
+      const aboutResponse = await fetch(`${baseUrl}/about/`)
+      expect(aboutResponse.status).toBe(200)
+      const aboutHtml = await aboutResponse.text()
+      expect(aboutHtml).toContain('"pathname":"/about"')
+      expect(logs).not.toContain('Node server running')
+    },
+    180_000,
+  )
 })
 
-async function createFixture(prefix: string): Promise<string> {
+async function createFixture(prefix: string, options: CreateFictOptions = {}): Promise<string> {
   await fs.mkdir(fixtureRootBase, { recursive: true })
   const fixtureRoot = await fs.mkdtemp(path.join(fixtureRootBase, `${prefix}-`))
   dirs.push(fixtureRoot)
 
-  await scaffoldProject(fixtureRoot, { template: 'minimal', yes: true })
+  await scaffoldProject(fixtureRoot, { template: 'minimal', yes: true, ...options })
   return fixtureRoot
-}
-
-async function ensurePackageBuilt(args: { packageName: string; artifact: string }): Promise<void> {
-  if (await pathExists(args.artifact)) {
-    return
-  }
-
-  await runCommand('pnpm', ['--filter', args.packageName, 'build'], repoRoot)
 }
 
 async function linkWorkspacePackage(
@@ -240,13 +282,4 @@ async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise
 
 async function sleep(ms: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms))
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath)
-    return true
-  } catch {
-    return false
-  }
 }

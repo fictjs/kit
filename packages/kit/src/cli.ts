@@ -181,6 +181,7 @@ async function runPreview(options: ServerCliOptions): Promise<void> {
     return
   }
 
+  const previewOutDir = await resolvePreviewOutDir(resolved)
   const plugins = fictKit(toPluginOptions(options.config, resolved))
   const previewOptions: NonNullable<Parameters<typeof preview>[0]>['preview'] = {}
   if (host) previewOptions.host = host
@@ -192,7 +193,7 @@ async function runPreview(options: ServerCliOptions): Promise<void> {
     configFile: false,
     plugins,
     build: {
-      outDir: path.join(resolved.outDir, 'client'),
+      outDir: previewOutDir,
     },
     preview: previewOptions,
   })
@@ -343,6 +344,17 @@ async function pathExists(filePath: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function resolvePreviewOutDir(config: ResolvedFictKitConfig): Promise<string> {
+  const staticDir = path.join(config.outDir, 'static')
+  const staticMetadata = path.join(staticDir, '.fict-adapter-static.json')
+
+  if ((await pathExists(staticMetadata)) || config.adapter?.name === '@fictjs/adapter-static') {
+    return staticDir
+  }
+
+  return path.join(config.outDir, 'client')
 }
 
 async function readDirSafe(dirPath: string): Promise<string[]> {
