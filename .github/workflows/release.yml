@@ -35,6 +35,7 @@ jobs:
         run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
       - name: Version or Publish
+        if: github.event_name == 'workflow_dispatch'
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
@@ -43,6 +44,24 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
           CI: true
+
+      - name: Validate Publish Token
+        if: github.event_name == 'release'
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "::error::Set NPM_TOKEN (or NODE_AUTH_TOKEN) secret for release publishing."
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+
+      - name: Publish Packages
+        if: github.event_name == 'release'
+        run: pnpm changeset publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
