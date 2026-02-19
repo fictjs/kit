@@ -1,7 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@fictjs/kit": ["../kit/src/index.ts"],
+      "@fictjs/kit/*": ["../kit/src/*.ts"]
+    }
   },
   "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
 }
