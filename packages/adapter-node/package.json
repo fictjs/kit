@@ -36,7 +36,7 @@
     "clean": "rm -rf dist coverage"
   },
   "peerDependencies": {
-    "@fictjs/kit": ">=0.1.0"
+    "@fictjs/kit": ">=0.1.1"
   },
   "devDependencies": {
     "@fictjs/kit": "workspace:*",
@@ -47,7 +47,12 @@
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
-  "keywords": ["fict", "adapter", "node", "ssr"],
+  "keywords": [
+    "fict",
+    "adapter",
+    "node",
+    "ssr"
+  ],
   "license": "MIT",
   "author": "unadlib"
 }
