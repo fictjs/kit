@@ -39,6 +39,7 @@ describe('contracts', () => {
       const fixtureRoot = await createFixture('contract-node')
       const buildOutput = await buildFixture(fixtureRoot)
 
+      await ensureKitRuntimeDist()
       await linkLocalKitPackage(fixtureRoot)
 
       const port = await getAvailablePort()
@@ -142,6 +143,16 @@ async function createFixture(prefix: string): Promise<string> {
   await writeFixtureRoutes(fixtureRoot)
 
   return fixtureRoot
+}
+
+async function ensureKitRuntimeDist(): Promise<void> {
+  const distServer = path.join(kitPackageRoot, 'dist', 'server.js')
+  if (await pathExists(distServer)) {
+    return
+  }
+
+  const repoRoot = path.resolve(kitPackageRoot, '..', '..')
+  await runCommand('pnpm', ['--filter', '@fictjs/kit', 'build'], repoRoot)
 }
 
 async function writeFixtureRoutes(fixtureRoot: string): Promise<void> {
@@ -276,6 +287,34 @@ async function linkLocalKitPackage(fixtureRoot: string): Promise<void> {
       throw error
     }
   }
+}
+
+async function runCommand(command: string, args: string[], cwd: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let output = ''
+    child.stdout?.on('data', chunk => {
+      output += chunk.toString()
+    })
+    child.stderr?.on('data', chunk => {
+      output += chunk.toString()
+    })
+
+    child.on('error', reject)
+    child.on('close', code => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+
+      reject(new Error(`Command failed: ${command} ${args.join(' ')}\n${output}`))
+    })
+  })
 }
 
 async function getAvailablePort(): Promise<number> {
@@ -417,5 +456,14 @@ async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise
       return
     }
     await sleep(50)
+  }
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
   }
 }
