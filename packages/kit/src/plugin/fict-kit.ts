@@ -184,22 +184,19 @@ export function fictKit(options: FictKitPluginOptions = {}): PluginOption[] {
       setupDevMiddleware(server)
     },
     resolveId(id) {
-      if (
-        id === VIRTUAL_ROUTES_CLIENT ||
-        id === VIRTUAL_ROUTES_SERVER ||
-        id === VIRTUAL_ENTRY_CLIENT ||
-        id === VIRTUAL_ENTRY_SERVER
-      ) {
-        return id
+      const virtualId = resolveKnownVirtualId(id)
+      if (virtualId) {
+        return virtualId
       }
 
       return null
     },
     load(id) {
-      if (id === VIRTUAL_ROUTES_CLIENT) return clientRoutesModule
-      if (id === VIRTUAL_ROUTES_SERVER) return serverRoutesModule
-      if (id === VIRTUAL_ENTRY_CLIENT) return entryClientModule
-      if (id === VIRTUAL_ENTRY_SERVER) return entryServerModule
+      const virtualId = resolveKnownVirtualId(id)
+      if (virtualId === VIRTUAL_ROUTES_CLIENT) return clientRoutesModule
+      if (virtualId === VIRTUAL_ROUTES_SERVER) return serverRoutesModule
+      if (virtualId === VIRTUAL_ENTRY_CLIENT) return entryClientModule
+      if (virtualId === VIRTUAL_ENTRY_SERVER) return entryServerModule
       return null
     },
   }
@@ -387,6 +384,33 @@ function invalidateVirtualModule(server: ViteDevServer, id: string): void {
 
 function normalizeSlashes(input: string): string {
   return input.replace(/\\/g, '/')
+}
+
+const KNOWN_VIRTUAL_MODULE_IDS = [
+  VIRTUAL_ROUTES_CLIENT,
+  VIRTUAL_ROUTES_SERVER,
+  VIRTUAL_ENTRY_CLIENT,
+  VIRTUAL_ENTRY_SERVER,
+] as const
+
+function resolveKnownVirtualId(inputId: string): (typeof KNOWN_VIRTUAL_MODULE_IDS)[number] | null {
+  const normalized = normalizeSlashes(inputId)
+
+  for (const virtualId of KNOWN_VIRTUAL_MODULE_IDS) {
+    if (normalized === virtualId) {
+      return virtualId
+    }
+
+    if (normalized === `\0${virtualId}`) {
+      return virtualId
+    }
+
+    if (normalized.endsWith(`/${virtualId}`)) {
+      return virtualId
+    }
+  }
+
+  return null
 }
 
 async function resolveHooksFile(appRoot: string): Promise<string | undefined> {
