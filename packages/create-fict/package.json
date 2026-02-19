@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "description": "Scaffolder for Fict Kit projects",
   "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
     "create-fict": "bin/create-fict.js"
   },
