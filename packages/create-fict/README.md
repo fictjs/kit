@@ -1,4 +1,8 @@
-# create-fict
+# @fictjs/create-fict
+
+[![CI](https://github.com/fictjs/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/fictjs/kit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@fictjs/create-fict.svg)](https://www.npmjs.com/package/@fictjs/create-fict)
+![license](https://img.shields.io/npm/l/@fictjs/create-fict)
 
 Scaffolder for [Fict Kit](https://github.com/fictjs/kit) projects. Creates a new Fict Kit application with file-based routing, SSR, and your choice of tooling.
 

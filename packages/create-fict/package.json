@@ -1,5 +1,5 @@
 {
-  "name": "create-fict",
+  "name": "@fictjs/create-fict",
   "version": "0.1.0",
   "description": "Scaffolder for Fict Kit projects",
   "type": "module",
@@ -51,7 +51,11 @@
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
-  "keywords": ["fict", "scaffold", "create"],
+  "keywords": [
+    "fict",
+    "scaffold",
+    "create"
+  ],
   "license": "MIT",
   "author": "unadlib"
 }

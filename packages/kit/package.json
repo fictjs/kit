@@ -97,6 +97,7 @@
     "@fictjs/runtime": "^0.10.0",
     "@fictjs/ssr": "^0.10.0",
     "@fictjs/vite-plugin": "^0.10.0",
+    "@types/babel__core": "^7.20.5",
     "@types/babel__traverse": "^7.28.0",
     "@types/node": "^25.2.3",
     "tsup": "^8.5.1",

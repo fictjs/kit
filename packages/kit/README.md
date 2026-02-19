@@ -1,5 +1,9 @@
 # @fictjs/kit
 
+[![CI](https://github.com/fictjs/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/fictjs/kit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@fictjs/kit.svg)](https://www.npmjs.com/package/@fictjs/kit)
+![license](https://img.shields.io/npm/l/@fictjs/kit)
+
 The core meta-framework package for [Fict](https://github.com/fictjs/fict). Provides file-based routing, server-side rendering with resumability, data loading, API routes, server hooks, and a CLI -- all built on Vite.
 
 ## Installation

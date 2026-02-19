@@ -1,5 +1,9 @@
 # Fict Kit
 
+[![CI](https://github.com/fictjs/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/fictjs/kit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@fictjs/kit.svg)](https://www.npmjs.com/package/@fictjs/kit)
+![license](https://img.shields.io/npm/l/@fictjs/kit)
+
 The meta-framework for [Fict](https://github.com/fictjs/fict) -- file-based routing, SSR, resumability, and deployment adapters, powered by Vite.
 
 Fict Kit is to Fict what SvelteKit is to Svelte or what Next.js is to React: an opinionated application layer that handles routing, server-side rendering, data loading, and production deployment so you can focus on building your UI.
@@ -108,11 +112,11 @@ export default function AboutPage() {
 
 ### Dynamic Routes
 
-| File Pattern | URL Pattern | Example Match |
-| --- | --- | --- |
-| `users/[id].tsx` | `/users/:id` | `/users/42` |
-| `docs/[[lang]].tsx` | `/docs/:lang?` | `/docs` or `/docs/en` |
-| `blog/[...slug].tsx` | `/blog/*slug` | `/blog/2026/hello` |
+| File Pattern         | URL Pattern    | Example Match         |
+| -------------------- | -------------- | --------------------- |
+| `users/[id].tsx`     | `/users/:id`   | `/users/42`           |
+| `docs/[[lang]].tsx`  | `/docs/:lang?` | `/docs` or `/docs/en` |
+| `blog/[...slug].tsx` | `/blog/*slug`  | `/blog/2026/hello`    |
 
 ### Data Loading
 
@@ -197,9 +201,9 @@ Control per-route behavior with the `route` export:
 
 ```tsx
 export const route = {
-  ssr: false,                    // Disable SSR for this route
-  prerender: true,               // Prerender at build time
-  cache: { maxAge: 120 },        // Cache-Control header (seconds)
+  ssr: false, // Disable SSR for this route
+  prerender: true, // Prerender at build time
+  cache: { maxAge: 120 }, // Cache-Control header (seconds)
 }
 ```
 
@@ -238,10 +242,10 @@ export default defineConfig({
   resumability: {
     events: ['click', 'input', 'change', 'submit'],
     prefetch: {
-      visibility: true,       // Prefetch handlers when elements become visible
+      visibility: true, // Prefetch handlers when elements become visible
       visibilityMargin: '200px',
-      hover: true,            // Prefetch on hover
-      hoverDelay: 50,         // ms before prefetch on hover
+      hover: true, // Prefetch on hover
+      hoverDelay: 50, // ms before prefetch on hover
     },
   },
 })
@@ -298,9 +302,9 @@ import { defineConfig } from '@fictjs/kit/config'
 
 export default defineConfig({
   adapter: node({
-    outFile: 'dist/index.js',   // default
-    host: '0.0.0.0',            // default
-    port: 3000,                 // default
+    outFile: 'dist/index.js', // default
+    host: '0.0.0.0', // default
+    port: 3000, // default
   }),
 })
 ```
@@ -325,9 +329,9 @@ import { defineConfig } from '@fictjs/kit/config'
 
 export default defineConfig({
   adapter: static_({
-    outDir: 'dist/static',      // default
-    fallback: '404.html',       // default
-    prerender: true,            // default
+    outDir: 'dist/static', // default
+    fallback: '404.html', // default
+    prerender: true, // default
   }),
 })
 ```
@@ -343,12 +347,12 @@ Run `fict-kit sync` to generate TypeScript declarations in `.fict/generated/`:
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`@fictjs/kit`](packages/kit) | Core framework -- CLI, Vite plugin, router, server handler, client runtime |
-| [`@fictjs/adapter-node`](packages/adapter-node) | Node.js deployment adapter |
-| [`@fictjs/adapter-static`](packages/adapter-static) | Static site generation adapter |
-| [`create-fict`](packages/create-fict) | Project scaffolder |
+| Package                                             | Description                                                                |
+| --------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`@fictjs/kit`](packages/kit)                       | Core framework -- CLI, Vite plugin, router, server handler, client runtime |
+| [`@fictjs/adapter-node`](packages/adapter-node)     | Node.js deployment adapter                                                 |
+| [`@fictjs/adapter-static`](packages/adapter-static) | Static site generation adapter                                             |
+| [`create-fict`](packages/create-fict)               | Project scaffolder                                                         |
 
 ## Contributing
 
