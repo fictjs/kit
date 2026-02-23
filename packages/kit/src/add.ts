@@ -37,6 +37,15 @@ const FEATURE_ALIASES: Record<string, AddFeature> = {
 }
 
 const ADAPTER_FEATURES: AddFeature[] = ['adapter-node', 'adapter-static']
+const INTERNAL_ADAPTER_VERSION_RANGE = '^0.1.0'
+const ESLINT_VERSION_RANGE = '^9.39.2'
+const TYPESCRIPT_ESLINT_VERSION_RANGE = '^8.56.0'
+const ESLINT_PRETTIER_VERSION_RANGE = '^10.1.8'
+const VITEST_VERSION_RANGE = '^4.0.18'
+const TAILWIND_VERSION_RANGE = '^3.4.17'
+const POSTCSS_VERSION_RANGE = '^8.5.6'
+const AUTOPREFIXER_VERSION_RANGE = '^10.4.21'
+const PLAYWRIGHT_VERSION_RANGE = '^1.58.2'
 
 export function listSupportedAddFeatures(): AddFeature[] {
   return ['adapter-node', 'adapter-static', 'eslint', 'vitest', 'tailwind', 'playwright']
@@ -63,12 +72,12 @@ export async function addFeatures(options: AddFeaturesOptions): Promise<AddFeatu
 
   const adapterFeature = findAdapterFeature(resolvedFeatures)
   if (adapterFeature === 'adapter-static') {
-    dependencies['@fictjs/adapter-static'] = '^0.1.0'
+    dependencies['@fictjs/adapter-static'] = INTERNAL_ADAPTER_VERSION_RANGE
     delete dependencies['@fictjs/adapter-node']
     await updateAdapterConfig(configFilePath, 'static')
     files.add(path.relative(cwd, configFilePath))
   } else if (adapterFeature === 'adapter-node') {
-    dependencies['@fictjs/adapter-node'] = '^0.1.0'
+    dependencies['@fictjs/adapter-node'] = INTERNAL_ADAPTER_VERSION_RANGE
     delete dependencies['@fictjs/adapter-static']
     await updateAdapterConfig(configFilePath, 'node')
     files.add(path.relative(cwd, configFilePath))
@@ -76,10 +85,10 @@ export async function addFeatures(options: AddFeaturesOptions): Promise<AddFeatu
 
   if (resolvedFeatures.includes('eslint')) {
     scripts.lint = 'eslint .'
-    devDependencies.eslint = '^9.39.2'
-    devDependencies['@eslint/js'] = '^9.39.2'
-    devDependencies['typescript-eslint'] = '^8.56.0'
-    devDependencies['eslint-config-prettier'] = '^10.1.8'
+    devDependencies.eslint = ESLINT_VERSION_RANGE
+    devDependencies['@eslint/js'] = ESLINT_VERSION_RANGE
+    devDependencies['typescript-eslint'] = TYPESCRIPT_ESLINT_VERSION_RANGE
+    devDependencies['eslint-config-prettier'] = ESLINT_PRETTIER_VERSION_RANGE
 
     await writeFile(path.join(cwd, 'eslint.config.js'), ESLINT_CONFIG_SOURCE)
     files.add('eslint.config.js')
@@ -88,7 +97,7 @@ export async function addFeatures(options: AddFeaturesOptions): Promise<AddFeatu
   if (resolvedFeatures.includes('vitest')) {
     scripts.test = 'vitest run'
     scripts['test:watch'] = 'vitest'
-    devDependencies.vitest = '^4.0.18'
+    devDependencies.vitest = VITEST_VERSION_RANGE
 
     await writeFile(path.join(cwd, 'vitest.config.ts'), VITEST_CONFIG_SOURCE)
     await fs.mkdir(path.join(cwd, 'test'), { recursive: true })
@@ -98,9 +107,9 @@ export async function addFeatures(options: AddFeaturesOptions): Promise<AddFeatu
   }
 
   if (resolvedFeatures.includes('tailwind')) {
-    devDependencies.tailwindcss = '^3.4.17'
-    devDependencies.postcss = '^8.5.6'
-    devDependencies.autoprefixer = '^10.4.21'
+    devDependencies.tailwindcss = TAILWIND_VERSION_RANGE
+    devDependencies.postcss = POSTCSS_VERSION_RANGE
+    devDependencies.autoprefixer = AUTOPREFIXER_VERSION_RANGE
 
     await writeFile(path.join(cwd, 'tailwind.config.ts'), TAILWIND_CONFIG_SOURCE)
     await writeFile(path.join(cwd, 'postcss.config.cjs'), POSTCSS_CONFIG_SOURCE)
@@ -114,7 +123,7 @@ export async function addFeatures(options: AddFeaturesOptions): Promise<AddFeatu
 
   if (resolvedFeatures.includes('playwright')) {
     scripts['test:e2e'] = 'playwright test'
-    devDependencies['@playwright/test'] = '^1.58.2'
+    devDependencies['@playwright/test'] = PLAYWRIGHT_VERSION_RANGE
 
     await writeFile(path.join(cwd, 'playwright.config.ts'), PLAYWRIGHT_CONFIG_SOURCE)
     await fs.mkdir(path.join(cwd, 'e2e'), { recursive: true })

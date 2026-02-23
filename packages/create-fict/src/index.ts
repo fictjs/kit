@@ -9,6 +9,17 @@ import pc from 'picocolors'
 
 type AdapterChoice = 'node' | 'static'
 const ADAPTER_CHOICES: AdapterChoice[] = ['node', 'static']
+const FICT_VERSION_RANGE = '^0.10.0'
+const INTERNAL_FICTJS_VERSION_RANGE = '^0.1.0'
+const ROUTER_VERSION_RANGE = '^0.10.0'
+const ESLINT_VERSION_RANGE = '^9.39.2'
+const TYPESCRIPT_ESLINT_VERSION_RANGE = '^8.56.0'
+const ESLINT_PRETTIER_VERSION_RANGE = '^10.1.8'
+const VITEST_VERSION_RANGE = '^4.0.18'
+const TAILWIND_VERSION_RANGE = '^3.4.17'
+const POSTCSS_VERSION_RANGE = '^8.5.6'
+const AUTOPREFIXER_VERSION_RANGE = '^10.4.21'
+const PLAYWRIGHT_VERSION_RANGE = '^1.58.2'
 
 interface ResolvedFeatures {
   adapter: AdapterChoice
@@ -295,24 +306,24 @@ async function applyFeatureSelections(targetDir: string, features: ResolvedFeatu
   scripts.sync = 'fict-kit sync'
   scripts.inspect = 'fict-kit inspect'
 
-  dependencies.fict = '^0.10.0'
-  dependencies['@fictjs/kit'] = '^0.1.0'
-  dependencies['@fictjs/router'] = '^0.10.0'
+  dependencies.fict = FICT_VERSION_RANGE
+  dependencies['@fictjs/kit'] = INTERNAL_FICTJS_VERSION_RANGE
+  dependencies['@fictjs/router'] = ROUTER_VERSION_RANGE
 
   if (features.adapter === 'static') {
-    dependencies['@fictjs/adapter-static'] = '^0.1.0'
+    dependencies['@fictjs/adapter-static'] = INTERNAL_FICTJS_VERSION_RANGE
     delete dependencies['@fictjs/adapter-node']
   } else {
-    dependencies['@fictjs/adapter-node'] = '^0.1.0'
+    dependencies['@fictjs/adapter-node'] = INTERNAL_FICTJS_VERSION_RANGE
     delete dependencies['@fictjs/adapter-static']
   }
 
   if (features.eslint) {
     scripts.lint = 'eslint .'
-    devDependencies.eslint = '^9.39.2'
-    devDependencies['@eslint/js'] = '^9.39.2'
-    devDependencies['typescript-eslint'] = '^8.56.0'
-    devDependencies['eslint-config-prettier'] = '^10.1.8'
+    devDependencies.eslint = ESLINT_VERSION_RANGE
+    devDependencies['@eslint/js'] = ESLINT_VERSION_RANGE
+    devDependencies['typescript-eslint'] = TYPESCRIPT_ESLINT_VERSION_RANGE
+    devDependencies['eslint-config-prettier'] = ESLINT_PRETTIER_VERSION_RANGE
     await fs.writeFile(path.join(targetDir, 'eslint.config.js'), ESLINT_CONFIG_SOURCE)
   } else {
     delete scripts.lint
@@ -326,7 +337,7 @@ async function applyFeatureSelections(targetDir: string, features: ResolvedFeatu
   if (features.vitest) {
     scripts.test = 'vitest run'
     scripts['test:watch'] = 'vitest'
-    devDependencies.vitest = '^4.0.18'
+    devDependencies.vitest = VITEST_VERSION_RANGE
     await fs.writeFile(path.join(targetDir, 'vitest.config.ts'), VITEST_CONFIG_SOURCE)
     await fs.mkdir(path.join(targetDir, 'test'), { recursive: true })
     await fs.writeFile(path.join(targetDir, 'test/app.test.ts'), TEST_SOURCE)
@@ -339,9 +350,9 @@ async function applyFeatureSelections(targetDir: string, features: ResolvedFeatu
   }
 
   if (features.tailwind) {
-    devDependencies.tailwindcss = '^3.4.17'
-    devDependencies.postcss = '^8.5.6'
-    devDependencies.autoprefixer = '^10.4.21'
+    devDependencies.tailwindcss = TAILWIND_VERSION_RANGE
+    devDependencies.postcss = POSTCSS_VERSION_RANGE
+    devDependencies.autoprefixer = AUTOPREFIXER_VERSION_RANGE
     await fs.writeFile(path.join(targetDir, 'tailwind.config.ts'), TAILWIND_CONFIG_SOURCE)
     await fs.writeFile(path.join(targetDir, 'postcss.config.cjs'), POSTCSS_CONFIG_SOURCE)
     await fs.writeFile(path.join(targetDir, 'src/styles.css'), TAILWIND_STYLES_SOURCE)
@@ -358,7 +369,7 @@ async function applyFeatureSelections(targetDir: string, features: ResolvedFeatu
 
   if (features.playwright) {
     scripts['test:e2e'] = 'playwright test'
-    devDependencies['@playwright/test'] = '^1.58.2'
+    devDependencies['@playwright/test'] = PLAYWRIGHT_VERSION_RANGE
     await fs.writeFile(path.join(targetDir, 'playwright.config.ts'), PLAYWRIGHT_CONFIG_SOURCE)
     await fs.mkdir(path.join(targetDir, 'e2e'), { recursive: true })
     await fs.writeFile(path.join(targetDir, 'e2e/app.spec.ts'), PLAYWRIGHT_TEST_SOURCE)
