@@ -10,13 +10,13 @@ Scaffolder for [Fict Kit](https://github.com/fictjs/kit) projects. Creates a new
 
 ```bash
 # npm
-npm create fict@latest my-app
+npm create @fictjs/fict@latest my-app
 
 # pnpm
-pnpm create fict my-app
+pnpm create @fictjs/fict my-app
 
 # npx
-npx create-fict my-app
+npx @fictjs/create-fict my-app
 ```
 
 Without flags, the CLI runs interactively, prompting you to select an adapter, ESLint, Vitest, Tailwind CSS, and Playwright.
@@ -43,16 +43,16 @@ Options:
 
 ```bash
 # Quick start with all defaults (node adapter, eslint, vitest)
-pnpm create fict my-app --yes
+pnpm create @fictjs/fict my-app --yes
 
 # Static site with Tailwind
-pnpm create fict my-blog --adapter static --tailwind --yes
+pnpm create @fictjs/fict my-blog --adapter static --tailwind --yes
 
 # Disable Vitest in non-interactive mode
-pnpm create fict my-app --no-vitest --yes
+pnpm create @fictjs/fict my-app --no-vitest --yes
 
 # Full setup with all tooling
-pnpm create fict my-app --tailwind --playwright --yes
+pnpm create @fictjs/fict my-app --tailwind --playwright --yes
 ```
 
 ## Generated Project Structure
@@ -100,7 +100,7 @@ pnpm test:e2e  # Run e2e tests with Playwright (if enabled)
 ## Programmatic API
 
 ```ts
-import { scaffoldProject } from 'create-fict'
+import { scaffoldProject } from '@fictjs/create-fict'
 
 const result = await scaffoldProject('/path/to/my-app', {
   adapter: 'node',

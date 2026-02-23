@@ -29,13 +29,13 @@ Fict Kit is to Fict what SvelteKit is to Svelte or what Next.js is to React: an 
 
 ```bash
 # npm
-npm create fict@latest my-app
+npm create @fictjs/fict@latest my-app
 
 # pnpm
-pnpm create fict my-app
+pnpm create @fictjs/fict my-app
 
 # Scaffold with options
-pnpm create fict my-app --adapter node --tailwind --vitest
+pnpm create @fictjs/fict my-app --adapter node --tailwind --vitest
 ```
 
 ### Or Add to an Existing Fict Project
@@ -352,7 +352,7 @@ Run `fict-kit sync` to generate TypeScript declarations in `.fict/generated/`:
 | [`@fictjs/kit`](packages/kit)                       | Core framework -- CLI, Vite plugin, router, server handler, client runtime |
 | [`@fictjs/adapter-node`](packages/adapter-node)     | Node.js deployment adapter                                                 |
 | [`@fictjs/adapter-static`](packages/adapter-static) | Static site generation adapter                                             |
-| [`create-fict`](packages/create-fict)               | Project scaffolder                                                         |
+| [`@fictjs/create-fict`](packages/create-fict)       | Project scaffolder                                                         |
 
 ## Contributing
 
