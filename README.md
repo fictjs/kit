@@ -377,7 +377,6 @@ pnpm build            # Build all packages
 pnpm test             # Run all tests
 pnpm lint             # Lint
 pnpm typecheck        # Type check
-pnpm format           # Format with Prettier
 ```
 
 ### Commit Convention
