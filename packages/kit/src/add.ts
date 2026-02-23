@@ -289,7 +289,7 @@ function rewriteDefineConfigAdapter(source: string, adapterCall: string, configF
 
 function removeUnusedAdapterImports(source: string, configFilePath: string): string {
   const ast = parseConfigAst(source, configFilePath)
-  const removableRanges: Array<{ start: number; end: number }> = []
+  const removableRanges: { start: number; end: number }[] = []
 
   traverse(ast, {
     Program(programPath) {
@@ -366,7 +366,7 @@ function parseConfigAst(source: string, configFilePath: string): t.File {
 }
 
 function findTopLevelAdapterProperty(
-  properties: Array<t.ObjectMethod | t.ObjectProperty | t.SpreadElement>,
+  properties: (t.ObjectMethod | t.ObjectProperty | t.SpreadElement)[],
 ): t.ObjectProperty | undefined {
   for (const property of properties) {
     if (!t.isObjectProperty(property)) continue
@@ -423,7 +423,7 @@ function replaceRange(source: string, start: number, end: number, value: string)
   return `${source.slice(0, start)}${value}${source.slice(end)}`
 }
 
-function removeSourceRanges(source: string, ranges: Array<{ start: number; end: number }>): string {
+function removeSourceRanges(source: string, ranges: { start: number; end: number }[]): string {
   const sorted = [...ranges].sort((left, right) => right.start - left.start)
   let next = source
 

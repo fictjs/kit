@@ -7,6 +7,7 @@ import pc from 'picocolors'
 import { build, createServer, preview } from 'vite'
 
 import packageJson from '../package.json'
+
 import { addFeatures } from './add'
 import { loadConfig, type ResolvedFictKitConfig } from './config'
 import { assertNoRouteErrors, scanRoutes } from './core/routes/scan'
