@@ -1,6 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRequestHandler, redirect } from '../src/server'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('createRequestHandler', () => {
   it('serves data endpoint', async () => {
@@ -269,5 +274,91 @@ describe('createRequestHandler', () => {
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('<html><body></body></html>')
     expect(loadSpy).not.toHaveBeenCalled()
+  })
+
+  it('forwards auth headers for same-origin event.fetch', async () => {
+    const fetchSpy = vi.fn(async () => new Response('ok'))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'home',
+          path: '/',
+          module: async () => ({
+            load: async event => {
+              await event.fetch('/api/session', {
+                headers: {
+                  'x-request-id': 'abc123',
+                },
+              })
+              return null
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>home</div>',
+    })
+
+    await handler(
+      new Request('http://local/', {
+        headers: {
+          cookie: 'session=xyz',
+          authorization: 'Bearer token',
+        },
+      }),
+    )
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit
+    const headers = new Headers(init.headers)
+    expect(headers.get('cookie')).toBe('session=xyz')
+    expect(headers.get('authorization')).toBe('Bearer token')
+    expect(headers.get('x-request-id')).toBe('abc123')
+  })
+
+  it('does not forward auth headers for cross-origin event.fetch', async () => {
+    const fetchSpy = vi.fn(async () => new Response('ok'))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const handler = createRequestHandler({
+      mode: 'dev',
+      routes: [
+        {
+          id: 'home',
+          path: '/',
+          module: async () => ({
+            load: async event => {
+              await event.fetch('https://third-party.example/api', {
+                headers: {
+                  'x-request-id': 'abc123',
+                },
+              })
+              return null
+            },
+          }),
+        },
+      ],
+      getTemplate: () => '<!--app-html-->',
+      render: () => '<div>home</div>',
+    })
+
+    await handler(
+      new Request('http://local/', {
+        headers: {
+          cookie: 'session=xyz',
+          authorization: 'Bearer token',
+        },
+      }),
+    )
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit
+    const headers = new Headers(init.headers)
+    expect(headers.get('cookie')).toBeNull()
+    expect(headers.get('authorization')).toBeNull()
+    expect(headers.get('x-request-id')).toBe('abc123')
   })
 })

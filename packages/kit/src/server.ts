@@ -493,23 +493,49 @@ function resolveTargetUrl(url: URL): URL {
 }
 
 function createEventFetch(request: Request): typeof fetch {
+  const requestUrl = new URL(request.url)
+
   return (input, init) => {
-    const headers = new Headers(init?.headers)
+    const headers = collectFetchHeaders(input, init)
 
-    const cookie = request.headers.get('cookie')
-    if (cookie && !headers.has('cookie')) {
-      headers.set('cookie', cookie)
-    }
+    if (isSameOriginFetchTarget(input, requestUrl)) {
+      const cookie = request.headers.get('cookie')
+      if (cookie && !headers.has('cookie')) {
+        headers.set('cookie', cookie)
+      }
 
-    const authorization = request.headers.get('authorization')
-    if (authorization && !headers.has('authorization')) {
-      headers.set('authorization', authorization)
+      const authorization = request.headers.get('authorization')
+      if (authorization && !headers.has('authorization')) {
+        headers.set('authorization', authorization)
+      }
     }
 
     return fetch(input, {
       ...init,
       headers,
     })
+  }
+}
+
+function collectFetchHeaders(input: RequestInfo | URL, init?: RequestInit): Headers {
+  const headers = new Headers(input instanceof Request ? input.headers : undefined)
+  const initHeaders = new Headers(init?.headers)
+  initHeaders.forEach((value, key) => headers.set(key, value))
+  return headers
+}
+
+function isSameOriginFetchTarget(input: RequestInfo | URL, requestUrl: URL): boolean {
+  const target = resolveFetchTargetUrl(input, requestUrl)
+  if (!target) return false
+  return target.origin === requestUrl.origin
+}
+
+function resolveFetchTargetUrl(input: RequestInfo | URL, requestUrl: URL): URL | undefined {
+  const rawInput = input instanceof Request ? input.url : input
+  try {
+    return new URL(rawInput, requestUrl)
+  } catch {
+    return undefined
   }
 }
 
