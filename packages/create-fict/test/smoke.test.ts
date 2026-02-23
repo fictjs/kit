@@ -105,6 +105,19 @@ describe('create-fict', () => {
     expect(entryClient).toContain("import './styles.css'")
   })
 
+  it('throws for invalid adapter values', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
+    dirs.push(root)
+
+    const targetDir = path.join(root, 'invalid-adapter')
+    await expect(
+      scaffoldProject(targetDir, {
+        template: 'minimal',
+        adapter: 'foo' as unknown as 'node',
+      }),
+    ).rejects.toThrow('Invalid adapter "foo"')
+  })
+
   it('throws when target is non-empty without force/yes', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'create-fict-'))
     dirs.push(root)

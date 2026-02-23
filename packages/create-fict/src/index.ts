@@ -8,6 +8,7 @@ import { cac } from 'cac'
 import pc from 'picocolors'
 
 type AdapterChoice = 'node' | 'static'
+const ADAPTER_CHOICES: AdapterChoice[] = ['node', 'static']
 
 interface ResolvedFeatures {
   adapter: AdapterChoice
@@ -189,12 +190,33 @@ async function readDirSafe(targetDir: string): Promise<string[]> {
 
 function normalizeFeatureOptions(options: CreateFictOptions): ResolvedFeatures {
   return {
-    adapter: options.adapter ?? 'node',
+    adapter: resolveAdapterChoice(options.adapter),
     eslint: options.eslint ?? true,
     vitest: options.vitest ?? true,
     tailwind: options.tailwind ?? false,
     playwright: options.playwright ?? false,
   }
+}
+
+function resolveAdapterChoice(input: unknown): AdapterChoice {
+  if (input === undefined || input === null || input === '') {
+    return 'node'
+  }
+
+  if (typeof input !== 'string') {
+    throw new Error(
+      `[create-fict] Invalid adapter "${String(input)}". Supported adapters: ${ADAPTER_CHOICES.join(', ')}.`,
+    )
+  }
+
+  const normalized = input.trim().toLowerCase()
+  if (normalized === 'node' || normalized === 'static') {
+    return normalized
+  }
+
+  throw new Error(
+    `[create-fict] Invalid adapter "${input}". Supported adapters: ${ADAPTER_CHOICES.join(', ')}.`,
+  )
 }
 
 async function resolveFeatures(
