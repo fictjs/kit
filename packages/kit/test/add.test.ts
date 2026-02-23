@@ -51,6 +51,38 @@ describe('addFeatures', () => {
 
     const config = await fs.readFile(path.join(root, 'fict.config.ts'), 'utf8')
     expect(config).toContain("@fictjs/adapter-static")
+    expect(config).not.toContain("@fictjs/adapter-node")
+    expect(config).toContain('adapter: staticAdapter()')
+  })
+
+  it('only updates top-level adapter property when nested adapter keys exist', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fict-kit-add-'))
+    dirs.push(root)
+
+    await writeFixture(root, {
+      'package.json': JSON.stringify(
+        {
+          name: 'test-app',
+          private: true,
+          dependencies: {
+            '@fictjs/adapter-node': '^0.1.0',
+          },
+        },
+        null,
+        2,
+      ),
+      'fict.config.ts':
+        "import node from '@fictjs/adapter-node'\nimport { defineConfig } from '@fictjs/kit/config'\n\nexport default defineConfig({\n  appRoot: 'src',\n  compiler: {\n    adapter: node(),\n  },\n  adapter: node(),\n})\n",
+    })
+
+    await addFeatures({
+      cwd: root,
+      features: ['static'],
+    })
+
+    const config = await fs.readFile(path.join(root, 'fict.config.ts'), 'utf8')
+    expect(config).toContain("@fictjs/adapter-static")
+    expect(config).toContain('compiler: {\n    adapter: node(),\n  }')
     expect(config).toContain('adapter: staticAdapter()')
   })
 

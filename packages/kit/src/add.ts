@@ -1,6 +1,10 @@
 import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import { parseSync } from '@babel/core'
+import traverse from '@babel/traverse'
+import * as t from '@babel/types'
+
 export type AddFeature =
   | 'adapter-node'
   | 'adapter-static'
@@ -188,18 +192,19 @@ async function updateAdapterConfig(configFilePath: string, adapter: 'node' | 'st
       ? "import staticAdapter from '@fictjs/adapter-static'"
       : "import node from '@fictjs/adapter-node'"
   const adapterCall = adapter === 'static' ? 'staticAdapter()' : 'node()'
+  const adapterPackage = adapter === 'static' ? '@fictjs/adapter-static' : '@fictjs/adapter-node'
 
-  const withoutAdapterImports = source
-    .split('\n')
-    .filter(line => !line.includes('@fictjs/adapter-node') && !line.includes('@fictjs/adapter-static'))
-    .join('\n')
+  const withAdapterImport = source.includes(adapterPackage)
+    ? source
+    : `${adapterImport}\n${source}`.replace(/\n{3,}/g, '\n\n')
+  const withAdapterProperty = rewriteDefineConfigAdapter(
+    withAdapterImport,
+    adapterCall,
+    configFilePath,
+  )
+  const normalizedImports = removeUnusedAdapterImports(withAdapterProperty, configFilePath)
 
-  const withAdapterImport = `${adapterImport}\n${withoutAdapterImports}`.replace(/\n{3,}/g, '\n\n')
-  const withAdapterProperty = withAdapterImport.includes('adapter:')
-    ? withAdapterImport.replace(/adapter:\s*[^,\n]+/g, `adapter: ${adapterCall}`)
-    : injectAdapterProperty(withAdapterImport, adapterCall, configFilePath)
-
-  await writeFile(configFilePath, normalizeTrailingNewline(withAdapterProperty))
+  await writeFile(configFilePath, normalizeTrailingNewline(normalizedImports))
 }
 
 function buildDefaultAdapterConfig(adapter: 'node' | 'static'): string {
@@ -254,15 +259,177 @@ function sortKeys<T extends Record<string, string>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b))) as T
 }
 
-function injectAdapterProperty(source: string, adapterCall: string, configFilePath: string): string {
-  const pattern = /defineConfig\(\s*\{/
-  if (!pattern.test(source)) {
+function rewriteDefineConfigAdapter(source: string, adapterCall: string, configFilePath: string): string {
+  const objectExpression = resolveDefineConfigObjectExpression(source, configFilePath)
+  const adapterProperty = findTopLevelAdapterProperty(objectExpression.properties)
+
+  if (!adapterProperty) {
+    return insertTopLevelAdapterProperty(source, objectExpression, adapterCall, configFilePath)
+  }
+
+  const valueStart = adapterProperty.value.start
+  const valueEnd = adapterProperty.value.end
+  if (valueStart == null || valueEnd == null) {
     throw new Error(
       `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
     )
   }
 
-  return source.replace(pattern, match => `${match}\n  adapter: ${adapterCall},`)
+  return replaceRange(source, valueStart, valueEnd, adapterCall)
+}
+
+function removeUnusedAdapterImports(source: string, configFilePath: string): string {
+  const ast = parseConfigAst(source, configFilePath)
+  const removableRanges: Array<{ start: number; end: number }> = []
+
+  traverse(ast, {
+    Program(programPath) {
+      for (const statementPath of programPath.get('body')) {
+        if (!statementPath.isImportDeclaration()) continue
+        const importSource = statementPath.node.source.value
+        if (importSource !== '@fictjs/adapter-node' && importSource !== '@fictjs/adapter-static') {
+          continue
+        }
+
+        const defaultSpecifier = statementPath.node.specifiers.find(specifier =>
+          t.isImportDefaultSpecifier(specifier),
+        )
+        if (!defaultSpecifier) continue
+        const binding = statementPath.scope.getBinding(defaultSpecifier.local.name)
+        if (!binding?.referenced) {
+          const start = statementPath.node.start
+          const end = statementPath.node.end
+          if (start != null && end != null) {
+            removableRanges.push({ start, end })
+          }
+        }
+      }
+      programPath.stop()
+    },
+  })
+
+  if (removableRanges.length === 0) {
+    return source
+  }
+
+  return removeSourceRanges(source, removableRanges)
+}
+
+function resolveDefineConfigObjectExpression(source: string, configFilePath: string): t.ObjectExpression {
+  const ast = parseConfigAst(source, configFilePath)
+
+  let resolved: t.ObjectExpression | undefined
+  traverse(ast, {
+    CallExpression(callPath) {
+      if (!t.isIdentifier(callPath.node.callee, { name: 'defineConfig' })) return
+      const firstArg = callPath.node.arguments[0]
+      if (!t.isObjectExpression(firstArg)) return
+      resolved = firstArg
+      callPath.stop()
+    },
+  })
+
+  if (!resolved) {
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
+  }
+
+  return resolved
+}
+
+function parseConfigAst(source: string, configFilePath: string): t.File {
+  const ast = parseSync(source, {
+    sourceType: 'module',
+    filename: configFilePath,
+    parserOpts: {
+      plugins: ['typescript'],
+    },
+  })
+
+  if (!ast) {
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
+  }
+
+  return ast
+}
+
+function findTopLevelAdapterProperty(
+  properties: Array<t.ObjectMethod | t.ObjectProperty | t.SpreadElement>,
+): t.ObjectProperty | undefined {
+  for (const property of properties) {
+    if (!t.isObjectProperty(property)) continue
+    if (property.computed) continue
+
+    const key = property.key
+    if (t.isIdentifier(key, { name: 'adapter' })) {
+      return property
+    }
+    if (t.isStringLiteral(key, { value: 'adapter' })) {
+      return property
+    }
+  }
+
+  return undefined
+}
+
+function insertTopLevelAdapterProperty(
+  source: string,
+  objectExpression: t.ObjectExpression,
+  adapterCall: string,
+  configFilePath: string,
+): string {
+  const objectStart = objectExpression.start
+  if (objectStart == null) {
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
+  }
+
+  const insertPos = objectStart + 1
+  const firstProperty = objectExpression.properties[0]
+  if (!firstProperty) {
+    return `${source.slice(0, insertPos)}\n  adapter: ${adapterCall},\n${source.slice(insertPos)}`
+  }
+
+  const firstStart = firstProperty.start
+  if (firstStart == null) {
+    throw new Error(
+      `[fict-kit] Could not safely update ${configFilePath}. Please set adapter manually in your config.`,
+    )
+  }
+
+  const lineStart = source.lastIndexOf('\n', firstStart) + 1
+  const indent = source.slice(lineStart, firstStart) || '  '
+  if (lineStart > insertPos) {
+    return `${source.slice(0, insertPos)}\n${indent}adapter: ${adapterCall},${source.slice(insertPos)}`
+  }
+
+  return `${source.slice(0, insertPos)} adapter: ${adapterCall},${source.slice(insertPos)}`
+}
+
+function replaceRange(source: string, start: number, end: number, value: string): string {
+  return `${source.slice(0, start)}${value}${source.slice(end)}`
+}
+
+function removeSourceRanges(source: string, ranges: Array<{ start: number; end: number }>): string {
+  const sorted = [...ranges].sort((left, right) => right.start - left.start)
+  let next = source
+
+  for (const range of sorted) {
+    let end = range.end
+    if (next[end] === '\r' && next[end + 1] === '\n') {
+      end += 2
+    } else if (next[end] === '\n') {
+      end += 1
+    }
+
+    next = `${next.slice(0, range.start)}${next.slice(end)}`
+  }
+
+  return next.replace(/\n{3,}/g, '\n\n')
 }
 
 const ESLINT_CONFIG_SOURCE = `import eslint from '@eslint/js'\nimport prettier from 'eslint-config-prettier'\nimport tseslint from 'typescript-eslint'\n\nexport default tseslint.config(\n  {\n    ignores: ['dist/**', 'node_modules/**'],\n  },\n  eslint.configs.recommended,\n  ...tseslint.configs.recommended,\n  prettier,\n)\n`
