@@ -6,6 +6,7 @@ import { cac } from 'cac'
 import pc from 'picocolors'
 import { build, createServer, preview } from 'vite'
 
+import packageJson from '../package.json'
 import { addFeatures } from './add'
 import { loadConfig, type ResolvedFictKitConfig } from './config'
 import { assertNoRouteErrors, scanRoutes } from './core/routes/scan'
@@ -87,7 +88,7 @@ export function runCli(argv: string[] = process.argv): void {
     })
 
   cli.help()
-  cli.version('0.1.0')
+  cli.version(packageJson.version)
 
   cli.parse(argv)
 }

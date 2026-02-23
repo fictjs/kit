@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { cac } from 'cac'
 import pc from 'picocolors'
 
+import packageJson from '../package.json'
+
 type AdapterChoice = 'node' | 'static'
 const ADAPTER_CHOICES: AdapterChoice[] = ['node', 'static']
 const FICT_VERSION_RANGE = '^0.10.0'
@@ -81,7 +83,7 @@ export async function runCreateFict(argv: string[] = process.argv): Promise<void
     })
 
   cli.help()
-  cli.version('0.1.0')
+  cli.version(packageJson.version)
   cli.parse(argv)
 }
 
